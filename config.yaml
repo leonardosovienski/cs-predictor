@@ -1,0 +1,12 @@
+# cs-predictor — Fase 0 (esqueleto). O Elo inicial vem do ranking HLTV
+# (data/teams_cs.json, semeado linearmente #1=1600 → #30=1300); K-factors por
+# formato conforme o prompt de criação. Tudo recalibrável na Fase 1 (HLTV).
+game: "CS2"
+default_format: "bo3"
+k_factor_base: 32          # BO1; BO3=40, BO5=48 (model.K_FACTORS)
+bankroll: 1000
+stake_unit: 50
+
+teams_file: data/teams_cs.json
+# ratings correntes persistidos por update_ratings (ausente → initial_elo)
+ratings_file: data/ratings.json
