@@ -16,6 +16,7 @@ K-factor por formato (prompt de criação): BO1=32, BO3=40, BO5=48.
 import json
 from pathlib import Path
 
+from .calibration import PlattCalibrator
 from .config import ROOT, load_config, load_teams, resolve_team
 
 K_FACTORS = {"bo1": 32, "bo3": 40, "bo5": 48}
@@ -62,6 +63,10 @@ class EloModel:
             ROOT / cfg.get("ratings_file", "data/ratings.json"))
         if self.path.exists():
             self.ratings.update(json.loads(self.path.read_text(encoding="utf-8")))
+        # Platt (tentativa N+1 comprovada): materializado por
+        # scripts/backtest_calibracao.py; ausente → identidade (Fase 0/1 crua)
+        self.platt = PlattCalibrator.load(
+            ROOT / "data" / "calibration_platt.json")
 
     def _elo(self, name: str) -> tuple[str, float]:
         official = resolve_team(name)["name"]
@@ -81,14 +86,19 @@ class EloModel:
                      if int(placar.split("-")[0]) > int(placar.split("-")[1]))
         mapas = sum((int(s.split("-")[0]) + int(s.split("-")[1])) * pr
                     for s, pr in dist.items())
+        # Platt calibra a PROBABILIDADE DE SÉRIE (o número apostável) — a
+        # distribuição de placares e os mapas esperados seguem crus
+        # (declarado: a sobreconfiança foi medida na prob de série)
+        prob_cal = self.platt.apply(prob_a) if self.platt else prob_a
         return {"team_a": a, "team_b": b, "format": fmt,
                 "elo_a": round(elo_a, 1), "elo_b": round(elo_b, 1),
                 "p_map_a": round(p_map, 4),
-                "prob_team_a": round(prob_a, 4),
-                "prob_team_b": round(1.0 - prob_a, 4),
+                "prob_team_a": round(prob_cal, 4),
+                "prob_team_b": round(1.0 - prob_cal, 4),
+                "prob_team_a_raw": round(prob_a, 4),
                 "mapas_esperados": round(mapas, 2),
                 "score_probs": {s: round(pr, 4) for s, pr in dist.items()},
-                "model": "elo-fase0"}
+                "model": "elo-platt-fase1" if self.platt else "elo-fase0"}
 
     def predict_handicap(self, team_a: str, team_b: str,
                          handicap: float, format: str = "bo3") -> dict:

@@ -23,5 +23,25 @@
       "2024-12-22",
       "2026-07-11"
     ]
+  },
+  {
+    "name": "h2-cs-elo-platt-prequential",
+    "registered_at": "2026-07-11T18:31:47Z",
+    "params": {
+      "model": "elo-mapa+combinatoria-serie+platt",
+      "platt": {
+        "min_fit": 300,
+        "refit_every": 200,
+        "janela": "expanding forward-only"
+      },
+      "base": "h1-cs-elo-serie-prequential (mesmo Elo, mesma passada)",
+      "period": "2024-12..2026-07"
+    },
+    "sharpe": null,
+    "notes": "N+1: Platt scaling sobre a prob de série do Elo (motivado pela sobreconfiança nas pontas do relatório da Fase 1). COMPROVADA = Brier menor que o Elo cru + DM p<0.05. | RESULTADO 2026-07-11: COMPROVADA — Brier 0.4573 -> 0.4518, DM p=0.00000, n=10671.",
+    "test_period": [
+      "2024-12-22",
+      "2026-07-11"
+    ]
   }
 ]

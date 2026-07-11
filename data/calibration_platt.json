@@ -1,0 +1,8 @@
+{
+  "a": 0.682329,
+  "b": 0.095752,
+  "fitted_on": 10671,
+  "brier_raw": 0.4573,
+  "brier_cal": 0.4518,
+  "trial": "h2-cs-elo-platt-prequential"
+}
