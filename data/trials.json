@@ -1,0 +1,27 @@
+[
+  {
+    "name": "h1-cs-elo-serie-prequential",
+    "registered_at": "2026-07-11T06:19:59Z",
+    "params": {
+      "model": "elo-mapa+combinatoria-serie",
+      "k_factors": {
+        "bo1": 32,
+        "bo3": 40,
+        "bo5": 48
+      },
+      "seed": "hltv-top30-2026-07-06-linear",
+      "default_seed_elo": 1400,
+      "burnin_days": 90,
+      "min_team_matches": 10,
+      "baseline": "elo-semente-congelado (ranking HLTV)",
+      "source": "hltv /results (todas as tiers)",
+      "period": "2024-12..2026-07"
+    },
+    "sharpe": null,
+    "notes": "H1-CS: Elo por mapa atualizado por série (K por formato) prevê o vencedor da série melhor que o ranking-semente congelado. COMPROVADA = Brier menor E Diebold-Mariano p<0.05 sobre log-loss. Métrica probabilística (sem odds na Fase 1a). | RESULTADO 2026-07-11: COMPROVADA — n=10671, Brier 0.4573 vs semente 0.4956, acerto 62.6%, DM p<1e-4. Calibracao SOBRECONFIANTE nas pontas (0.93 prev vs 0.88 real; 0.07 prev vs 0.19 real): zebra de CS vence mais que o Elo /400 diz — recalibrar a escala/K e' tentativa N+1. Sem odds: metrica probabilistica (Fase 1a).",
+    "test_period": [
+      "2024-12-22",
+      "2026-07-11"
+    ]
+  }
+]

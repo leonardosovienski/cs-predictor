@@ -1,9 +1,13 @@
 # cs-predictor
 
-> **Status: Fase 0 — esqueleto funcional (2026-07-10).** Modelo Elo rodando,
-> CI verde, vendor no predictor_core v1.1.0. **Backtest e operação real ainda
-> NÃO existem** — nenhuma previsão daqui tem edge demonstrado. Não é
-> ferramenta de investimento.
+> **Status: Fase 1 CONCLUÍDA (2026-07-11).** HLTV destravado (curl_cffi
+> impersonate); 17.100 séries coletadas e backtest prequential rodado:
+> **H1 (Elo vencedor da série) COMPROVADA** — Brier 0,4573 vs semente
+> 0,4956, acerto 62,6%, DM p<1e-4 — com **sobreconfiança nas pontas**
+> documentada (zebra vence mais que o /400 diz). Elo vivido de 1.227 times
+> em `data/ratings.json`. **Sem odds, sem apostas** (Fase 1b exigiria fonte
+> de odds). Relatório: `docs/RELATORIO_FASE1.md`. Não é ferramenta de
+> investimento.
 
 Laboratório de previsão de **partidas de Counter-Strike 2** (vencedor da
 série, handicap e total de mapas), sexto consumidor do ecossistema

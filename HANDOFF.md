@@ -1,5 +1,24 @@
 # HANDOFF.md — cs-predictor
 
+> ## 🟢 FASE 1 CONCLUÍDA — H1 COMPROVADA (2026-07-11)
+>
+> **O 403 do HLTV caiu**: curl_cffi + impersonate Chrome responde 200 com
+> conteúdo real (mesma técnica do Sofascore). `hltv_provider.py` virou
+> implementação real (parser de /results por regex, delay 2s); **17.100
+> séries** coletadas (2024-12→2026-07, todas as tiers, 1.008+ times).
+>
+> Backtest prequential (Elo por mapa, P(série) pela combinatória do formato,
+> K 32/40/48, burn-in 90d, n medido 10.671) com governança completa.
+> **H1-CS COMPROVADA**: Brier 0,4573 vs semente 0,4956 (≈coin-flip fora do
+> Top 30 — a prova é de APRENDIZADO), acerto 62,6%, DM p<1e-4.
+>
+> **Achado central: sobreconfiança nas pontas** (prev 0,93 → real 0,88;
+> prev 0,07 → real 0,19) — zebra de CS vence mais que a logística /400 diz
+> (variância de veto/mapa + roster changes). Recalibrar escala/K = tentativa
+> N+1 no registro; NÃO foi rodada. Serving materializado: `ratings.json`
+> (Elo vivido de 1.227 times). Relatório: `docs/RELATORIO_FASE1.md`.
+> Fase 1b (odds ao vivo em sombra) depende de fonte de odds corrente.
+
 > ## 🔫 CRIAÇÃO (2026-07-10)
 >
 > **Projeto criado. Modelo Elo base implementado. Backtest e operação real

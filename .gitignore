@@ -4,6 +4,9 @@
 /data/bets.jsonl
 /data/bankroll.jsonl
 /data/ratings.json
+/data/cs.db*
+/data/walkforward_summary.json
+# trials.json + atestado são VERSIONADOS (denominador do DSR imortal)
 *.db
 *.log
 events.jsonl

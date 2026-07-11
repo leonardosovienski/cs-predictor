@@ -1,37 +1,135 @@
-"""Fonte de dados HLTV — STUB da Fase 0.
+"""Fonte de dados HLTV — IMPLEMENTAÇÃO REAL (Fase 1, 2026-07-11).
 
-O HLTV bloqueia fetch direto (403 Cloudflare — confirmado na criação deste
-projeto em 2026-07-10; o ranking veio de um espelho). A Fase 1 decide a via:
-curl_cffi com impersonate (padrão sofascore da plataforma), API de terceiros
-ou export manual. Interface com a mesma disciplina do core
-(DataUnavailableError; delay de cortesia via HLTV_SCRAPER_DELAY).
+O 403 da Fase 0 caiu com curl_cffi + impersonate Chrome (mesma técnica do
+Sofascore na plataforma; sondagem 2026-07-11: /results e /ranking respondem
+200 com conteúdo real). Parser de /results?offset=N por regex sobre os blocos
+`result-con` — cada bloco carrega timestamp unix (ms), os dois times, o
+placar da série, o evento e o formato (map-text: 'bo3'/'bo5'; nome de mapa
+= bo1).
+
+Cortesia: HLTV_SCRAPER_DELAY (default 2s) entre páginas — é scraping de
+página HTML, não API; seja educado ou o 403 volta.
 """
+import atexit
 import os
+import re
+import ssl
+import sys
+import tempfile
+import time
+from datetime import datetime, timezone
+from pathlib import Path
 
-from predictor_core.data.contracts import DataUnavailableError
+from curl_cffi import requests as creq
+
+BASE = "https://www.hltv.org"
+
+_BLOCK = re.compile(
+    r'data-zonedgrouping-entry-unix="(\d+)"(.*?)'
+    r'(?=data-zonedgrouping-entry-unix="|<div class="standard-headline|$)',
+    re.S)
+_TEAM = re.compile(r'<div class="team[^"]*">([^<]+)</div>')
+_SCORE = re.compile(r'result-score">(.*?)</td>', re.S)
+_EVENT = re.compile(r'<span class="event-name">([^<]+)</span>')
+_MAP = re.compile(r'<div class="map-text">([^<]+)</div>')
+_HREF = re.compile(r'<a href="(/matches/(\d+)/[^"]*)"')
+_TAGS = re.compile(r"<[^>]+>")
+
+
+def _windows_ca_bundle():
+    if sys.platform != "win32":
+        return None
+    pems = []
+    for store in ("ROOT", "CA"):
+        try:
+            for cert, _enc, _trust in ssl.enum_certificates(store):
+                pems.append(ssl.DER_cert_to_PEM_cert(cert))
+        except Exception:
+            pass
+    if not pems:
+        return None
+    tmp = tempfile.NamedTemporaryFile("w", suffix=".pem", delete=False)
+    tmp.write("\n".join(pems))
+    tmp.close()
+    atexit.register(lambda: Path(tmp.name).unlink(missing_ok=True))
+    return tmp.name
+
+
+def parse_results_page(html: str) -> list[dict]:
+    """Blocos result-con → dicts. Função pura (testável sem rede)."""
+    out = []
+    for ts_ms, block in _BLOCK.findall(html):
+        teams = _TEAM.findall(block)
+        score_m = _SCORE.search(block)
+        href_m = _HREF.search(block)
+        if len(teams) < 2 or not score_m or not href_m:
+            continue
+        raw = _TAGS.sub(" ", score_m.group(1))
+        nums = re.findall(r"\d+", raw)
+        if len(nums) < 2:
+            continue
+        map_m = _MAP.search(block)
+        mtext = (map_m.group(1).strip().lower() if map_m else "")
+        fmt = mtext if mtext in ("bo3", "bo5") else "bo1"
+        ev = _EVENT.search(block)
+        ts = int(ts_ms) // 1000
+        out.append({
+            "match_id": int(href_m.group(2)),
+            "url": href_m.group(1),
+            "date": datetime.fromtimestamp(ts, timezone.utc).strftime("%Y-%m-%d"),
+            "ts": ts,
+            "team_a": teams[0].strip(),
+            "team_b": teams[1].strip(),
+            "score_a": int(nums[0]),
+            "score_b": int(nums[1]),
+            "format": fmt,
+            "event": ev.group(1).strip() if ev else None,
+        })
+    return out
 
 
 class HltvProvider:
-    """Interface da fonte HLTV. Fase 0: tudo levanta DataUnavailableError —
-    nenhum teste ou serving pode depender de rede sem perceber."""
+    """Cliente real do HLTV (curl_cffi impersonate + CA bundle do Windows)."""
 
-    BASE_URL = "https://www.hltv.org"
-
-    def __init__(self, delay: float | None = None):
+    def __init__(self, delay: float | None = None,
+                 impersonate: str = "chrome146"):
         self.delay = float(delay if delay is not None
                            else os.environ.get("HLTV_SCRAPER_DELAY", 2))
+        self.session = creq.Session(impersonate=impersonate)
+        self.session.headers.update({
+            "Accept-Language": "en-US,en;q=0.9",
+            "Referer": "https://www.hltv.org/"})
+        if os.environ.get("HLTV_INSECURE") == "1":
+            self.verify = False
+        else:
+            self.verify = _windows_ca_bundle() or True
 
     def health_check(self) -> bool:
-        """Fase 0: sem rede — sempre False (honesto: não há fonte ligada)."""
-        return False
+        try:
+            r = self.session.get(f"{BASE}/results?offset=0", timeout=30,
+                                 verify=self.verify)
+            return r.status_code == 200 and "result-con" in r.text
+        except Exception:
+            return False
 
-    def fetch_ranking(self) -> list[dict]:
-        """Fase 1: Top 30 atual (nome, região, posição)."""
-        raise DataUnavailableError(
-            "HltvProvider é stub na Fase 0 — HLTV responde 403 a cliente "
-            "HTTP simples; implementar via curl_cffi/impersonate na Fase 1")
+    def fetch_results_page(self, offset: int) -> list[dict]:
+        """Uma página de /results (100 resultados), já parseada."""
+        r = self.session.get(f"{BASE}/results?offset={offset}", timeout=30,
+                             verify=self.verify)
+        time.sleep(self.delay)
+        r.raise_for_status()
+        return parse_results_page(r.text)
 
-    def fetch_results(self, days: int = 30) -> list[dict]:
-        """Fase 1: resultados de partidas Tier 1/2 (para update_ratings e
-        backtest walk-forward)."""
-        raise DataUnavailableError("HltvProvider é stub na Fase 0")
+    def fetch_results(self, until_date: str, max_pages: int = 600):
+        """Gera resultados paginando até que a página só contenha jogos
+        ANTERIORES a until_date (ISO). Yield página a página (o chamador
+        persiste incrementalmente — queda no meio não perde o que veio)."""
+        offset = 0
+        for _ in range(max_pages):
+            rows = self.fetch_results_page(offset)
+            if not rows:
+                return
+            yield rows
+            if min(r["date"] for r in rows) < until_date:
+                return
+            offset += 100
