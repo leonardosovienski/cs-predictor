@@ -12,6 +12,7 @@ retoma de onde parou sozinha.
 
 Uso:
     python -m src.ingest_hltv_maps [--limit N]
+    python -m src.ingest_hltv_maps --teams "paiN,NiP,3DMAX,HEROIC,Wildcard"
 """
 import argparse
 import sys
@@ -21,13 +22,13 @@ from . import db
 from .config import ROOT, load_config
 
 
-def run(limit: int | None = None) -> None:
+def run(limit: int | None = None, teams: list[str] | None = None) -> None:
     from .data.hltv_provider import HltvProvider
     cfg = load_config()
     provider = HltvProvider(delay=cfg.get("hltv", {}).get("scraper_delay"))
     conn = db.connect(str(ROOT / cfg.get("database", "data/cs.db")))
 
-    pending = db.match_ids_missing_maps(conn)
+    pending = db.match_ids_missing_maps(conn, teams=teams)
     if limit:
         pending = pending[:limit]
     total = len(pending)
@@ -61,5 +62,9 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=None,
                     help="processa só as N primeiras partidas pendentes")
+    ap.add_argument("--teams", default=None,
+                    help="restringe a partidas com pelo menos um desses "
+                         "times (separados por vírgula)")
     args = ap.parse_args()
-    sys.exit(run(args.limit))
+    teams = [t.strip() for t in args.teams.split(",")] if args.teams else None
+    sys.exit(run(args.limit, teams=teams))

@@ -74,10 +74,20 @@ def upsert_match_maps(conn, match_id: int, maps: list[dict]) -> int:
     return cur.rowcount
 
 
-def match_ids_missing_maps(conn) -> list[int]:
-    """match_id em ordem cronológica que ainda não têm mapa a mapa coletado."""
+def match_ids_missing_maps(conn, teams: list[str] | None = None) -> list[int]:
+    """match_id em ordem cronológica que ainda não têm mapa a mapa coletado.
+
+    `teams`, se dado, restringe a partidas em que PELO MENOS um dos lados
+    é um desses times (foco em campeonatos específicos, sem raspar o
+    histórico inteiro)."""
+    where = ("WHERE match_id NOT IN (SELECT DISTINCT match_id FROM match_maps)")
+    params: list = []
+    if teams:
+        placeholders = ",".join("?" for _ in teams)
+        where += (f" AND (team_a IN ({placeholders}) "
+                  f"OR team_b IN ({placeholders}))")
+        params = list(teams) + list(teams)
     rows = conn.execute(
-        "SELECT match_id FROM matches WHERE match_id NOT IN "
-        "(SELECT DISTINCT match_id FROM match_maps) "
-        "ORDER BY date, ts, match_id").fetchall()
+        f"SELECT match_id FROM matches {where} "
+        "ORDER BY date, ts, match_id", params).fetchall()
     return [r[0] for r in rows]
