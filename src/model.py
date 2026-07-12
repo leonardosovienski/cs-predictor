@@ -69,8 +69,23 @@ class EloModel:
             ROOT / "data" / "calibration_platt.json")
 
     def _elo(self, name: str) -> tuple[str, float]:
-        official = resolve_team(name)["name"]
-        return official, self.ratings[official]
+        try:
+            official = resolve_team(name)["name"]
+            return official, self.ratings[official]
+        except ValueError:
+            pass
+        # fora do Top 30 semeado, mas com Elo vivido em ratings.json
+        # (times que só entram na base pelo histórico real de partidas)
+        low = name.strip().lower()
+        for official, elo in self.ratings.items():
+            if official.lower() == low:
+                return official, elo
+        hits = [official for official in self.ratings
+                if low in official.lower()]
+        if len(hits) == 1:
+            return hits[0], self.ratings[hits[0]]
+        raise ValueError(f"time desconhecido: {name!r}"
+                         + (f" — você quis dizer {hits}?" if hits else ""))
 
     def predict_match(self, team_a: str, team_b: str, format: str = "bo3") -> dict:
         fmt = format.lower()
