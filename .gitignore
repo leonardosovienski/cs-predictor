@@ -6,6 +6,9 @@
 /data/ratings.json
 /data/cs.db*
 /data/walkforward_summary.json
+/data/ratings_maps.json
+/data/map_elo_summary.json
+/data/ingest_maps.log
 # trials.json + atestado são VERSIONADOS (denominador do DSR imortal)
 *.db
 *.log

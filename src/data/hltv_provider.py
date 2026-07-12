@@ -35,6 +35,14 @@ _MAP = re.compile(r'<div class="map-text">([^<]+)</div>')
 _HREF = re.compile(r'<a href="(/matches/(\d+)/[^"]*)"')
 _TAGS = re.compile(r"<[^>]+>")
 
+_MAPHOLDER = re.compile(
+    r'<div class="mapholder">(.*?)(?=<div class="mapholder">|$)', re.S)
+_PLAYED = re.compile(r'<div class="(played|optional)">', re.S)
+_MAPNAME = re.compile(r'<div class="mapname">([^<]+)</div>')
+_TEAMNAME = re.compile(r'<div class="results-teamname text-ellipsis">'
+                       r'([^<]+)</div>\s*'
+                       r'<div class="results-team-score">([^<]+)</div>')
+
 
 def _windows_ca_bundle():
     if sys.platform != "win32":
@@ -88,6 +96,32 @@ def parse_results_page(html: str) -> list[dict]:
     return out
 
 
+def parse_match_page(html: str) -> list[dict]:
+    """Página /matches/<id>/... → mapas JOGADOS em ordem (mapname, times,
+    placar em rounds). Blocos "optional" (não jogados, sobra do veto) são
+    descartados. Função pura (testável sem rede)."""
+    out = []
+    for block in _MAPHOLDER.findall(html):
+        played_m = _PLAYED.search(block)
+        if not played_m or played_m.group(1) != "played":
+            continue
+        map_m = _MAPNAME.search(block)
+        teams = _TEAMNAME.findall(block)
+        if not map_m or len(teams) < 2:
+            continue
+        (name_a, score_a), (name_b, score_b) = teams[0], teams[1]
+        if not score_a.strip().isdigit() or not score_b.strip().isdigit():
+            continue                            # placar "-" = mapa não jogado
+        out.append({
+            "map_name": map_m.group(1).strip(),
+            "team_a": name_a.strip(),
+            "team_b": name_b.strip(),
+            "score_a": int(score_a),
+            "score_b": int(score_b),
+        })
+    return out
+
+
 class HltvProvider:
     """Cliente real do HLTV (curl_cffi impersonate + CA bundle do Windows)."""
 
@@ -119,6 +153,15 @@ class HltvProvider:
         time.sleep(self.delay)
         r.raise_for_status()
         return parse_results_page(r.text)
+
+    def fetch_match_maps(self, match_id: int, url: str | None = None) -> list[dict]:
+        """Mapas jogados de UMA partida (página de detalhe). `url` é o path
+        relativo já capturado em /results (evita reconstruir slug)."""
+        path = url if url else f"/matches/{match_id}/x"
+        r = self.session.get(f"{BASE}{path}", timeout=30, verify=self.verify)
+        time.sleep(self.delay)
+        r.raise_for_status()
+        return parse_match_page(r.text)
 
     def fetch_results(self, until_date: str, max_pages: int = 600):
         """Gera resultados paginando até que a página só contenha jogos

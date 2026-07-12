@@ -20,11 +20,26 @@ CREATE TABLE IF NOT EXISTS matches (
     event       TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_matches_date ON matches(date);
+
+CREATE TABLE IF NOT EXISTS match_maps (
+    match_id    INTEGER NOT NULL,        -- FK matches.match_id
+    seq         INTEGER NOT NULL,        -- ordem do mapa dentro da série (1..5)
+    map_name    TEXT NOT NULL,           -- Mirage, Inferno, Ancient, ...
+    team_a      TEXT NOT NULL,           -- mesma convenção de matches.team_a/b
+    team_b      TEXT NOT NULL,
+    score_a     INTEGER NOT NULL,        -- rounds vencidos NESTE mapa
+    score_b     INTEGER NOT NULL,
+    PRIMARY KEY (match_id, seq)
+);
 """
 
 UPSERT = ("INSERT OR REPLACE INTO matches "
           "(match_id, date, ts, team_a, team_b, score_a, score_b, format, event) "
           "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+
+UPSERT_MAP = ("INSERT OR REPLACE INTO match_maps "
+              "(match_id, seq, map_name, team_a, team_b, score_a, score_b) "
+              "VALUES (?, ?, ?, ?, ?, ?, ?)")
 
 
 def connect(db_path: str, read_only: bool = False) -> sqlite3.Connection:
@@ -48,3 +63,21 @@ def upsert_matches(conn, rows: list[dict]) -> int:
         for r in rows])
     conn.commit()
     return cur.rowcount
+
+
+def upsert_match_maps(conn, match_id: int, maps: list[dict]) -> int:
+    cur = conn.executemany(UPSERT_MAP, [
+        (match_id, i + 1, m["map_name"], m["team_a"], m["team_b"],
+         m["score_a"], m["score_b"])
+        for i, m in enumerate(maps)])
+    conn.commit()
+    return cur.rowcount
+
+
+def match_ids_missing_maps(conn) -> list[int]:
+    """match_id em ordem cronológica que ainda não têm mapa a mapa coletado."""
+    rows = conn.execute(
+        "SELECT match_id FROM matches WHERE match_id NOT IN "
+        "(SELECT DISTINCT match_id FROM match_maps) "
+        "ORDER BY date, ts, match_id").fetchall()
+    return [r[0] for r in rows]
