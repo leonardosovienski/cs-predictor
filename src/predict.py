@@ -116,7 +116,10 @@ def main(argv=None) -> int:
         h = r["handicap_consultado"]
         print(f"  consultado: {h['team_a']} {h['handicap']:+.1f} → "
               f"P cobrir {h['p_cover']:.1%}")
-    print("  [Fase 0: Elo semeado pelo ranking HLTV — sem histórico ainda]")
+    if r["model"] == "elo-platt-fase1":
+        print("  [Fase 1: Elo vivido (ratings.json) + Platt calibrado]")
+    else:
+        print("  [Fase 0: Elo semeado pelo ranking HLTV — sem histórico ainda]")
     return 0
 
 

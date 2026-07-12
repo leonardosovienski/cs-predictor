@@ -106,26 +106,40 @@ def main():
     print(f"PREQUENTIAL CS — {r['n_total']} séries processadas, "
           f"{n} na janela de medição")
 
-    br_m = brier(r["probs_m"], r["outs"])
-    br_b = brier(r["probs_b"], r["outs"])
-    ll_m = log_loss(r["probs_m"], r["outs"])
-    ll_b = log_loss(r["probs_b"], r["outs"])
-    acc = st.mean(1 if (p[0] >= 0.5) == (y == 0) else 0
-                  for p, y in zip(r["probs_m"], r["outs"]))
-    dm_stat, dm_p = diebold_mariano(r["loss_m"], r["loss_b"])[:2]
-    ok = br_m < br_b and dm_p < 0.05
-    print(f"\nH1-CS (vencedor da série): Brier modelo {br_m:.4f} vs "
-          f"semente {br_b:.4f} (coin-flip 0.5000)")
-    print(f"  log-loss {ll_m:.4f} vs {ll_b:.4f} | acerto {acc:.1%} | "
-          f"DM stat {dm_stat:+.2f} p={dm_p:.4f}")
-    print(f"  VEREDITO H1-CS: {'COMPROVADA' if ok else 'REFUTADA'} "
-          f"(Brier menor E DM p<0.05)")
-    calib = calibration_table([p[0] for p in r["probs_m"]],
-                              [1 if y == 0 else 0 for y in r["outs"]])
-    print("  calibração (P time A):")
-    for c in calib:
-        print(f"    {c['bin_lo']:.1f}-{c['bin_hi']:.1f}: n={c['n']:>5} "
-              f"prev {c['mean_pred']:.2f} vs real {c['obs_freq']:.2f}")
+    summary = {"n_series": r["n_total"], "n_medidos": n}
+    if n == 0:
+        print("\n[aviso] janela de medição vazia (amostra insuficiente para "
+              "burn-in/min_team_matches nesta base) — pulando métricas H1, "
+              "materializando apenas ratings.json com o Elo atualizado")
+    else:
+        br_m = brier(r["probs_m"], r["outs"])
+        br_b = brier(r["probs_b"], r["outs"])
+        ll_m = log_loss(r["probs_m"], r["outs"])
+        ll_b = log_loss(r["probs_b"], r["outs"])
+        acc = st.mean(1 if (p[0] >= 0.5) == (y == 0) else 0
+                      for p, y in zip(r["probs_m"], r["outs"]))
+        dm_stat, dm_p = diebold_mariano(r["loss_m"], r["loss_b"])[:2]
+        ok = br_m < br_b and dm_p < 0.05
+        print(f"\nH1-CS (vencedor da série): Brier modelo {br_m:.4f} vs "
+              f"semente {br_b:.4f} (coin-flip 0.5000)")
+        print(f"  log-loss {ll_m:.4f} vs {ll_b:.4f} | acerto {acc:.1%} | "
+              f"DM stat {dm_stat:+.2f} p={dm_p:.4f}")
+        print(f"  VEREDITO H1-CS: {'COMPROVADA' if ok else 'REFUTADA'} "
+              f"(Brier menor E DM p<0.05)")
+        calib = calibration_table([p[0] for p in r["probs_m"]],
+                                  [1 if y == 0 else 0 for y in r["outs"]])
+        print("  calibração (P time A):")
+        for c in calib:
+            print(f"    {c['bin_lo']:.1f}-{c['bin_hi']:.1f}: n={c['n']:>5} "
+                  f"prev {c['mean_pred']:.2f} vs real {c['obs_freq']:.2f}")
+        summary["h1"] = {"brier_modelo": round(br_m, 4),
+                          "brier_semente": round(br_b, 4),
+                          "logloss_modelo": round(ll_m, 4),
+                          "logloss_semente": round(ll_b, 4),
+                          "acerto": round(acc, 4),
+                          "dm_stat": round(dm_stat, 3), "dm_p": round(dm_p, 5),
+                          "verdict": "COMPROVADA" if ok else "REFUTADA",
+                          "calibracao": calib}
 
     data = ROOT / "data"
     (data / "ratings.json").write_text(
@@ -133,15 +147,6 @@ def main():
                    ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"\nserving materializado: ratings.json ({len(r['elo'])} times)")
 
-    summary = {"n_series": r["n_total"], "n_medidos": n,
-               "h1": {"brier_modelo": round(br_m, 4),
-                      "brier_semente": round(br_b, 4),
-                      "logloss_modelo": round(ll_m, 4),
-                      "logloss_semente": round(ll_b, 4),
-                      "acerto": round(acc, 4),
-                      "dm_stat": round(dm_stat, 3), "dm_p": round(dm_p, 5),
-                      "verdict": "COMPROVADA" if ok else "REFUTADA",
-                      "calibracao": calib}}
     (data / "walkforward_summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print("artefato: walkforward_summary.json")
