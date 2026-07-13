@@ -49,3 +49,25 @@ def test_cli_handicap_consultado(capsys):
 
 def test_cli_time_desconhecido_sai_2():
     assert predict.main(["Timeburgo", "MOUZ", "--json"]) == 2
+
+
+def test_run_com_maps_usa_elo_por_mapa():
+    r = predict.run("Vitality", "MOUZ", fmt="bo3",
+                    maps=["Mirage", "Inferno", "Ancient"])
+    assert r["model"] == "elo-mapa-platt-h3"
+    assert abs(r["prob_team_a"] + r["prob_team_b"] - 1.0) < 1e-6
+    assert set(r["p_por_mapa"]) == {"Mirage", "Inferno", "Ancient"}
+    assert "handicap_recomendado" in r
+
+
+def test_cli_maps_json(capsys):
+    rc = predict.main(["Vitality", "MOUZ", "--format", "bo3",
+                       "--maps", "Mirage,Inferno,Ancient", "--json"])
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["model"] == "elo-mapa-platt-h3"
+
+
+def test_maps_menos_que_o_necessario_bo3():
+    with pytest.raises(ValueError):
+        predict.run("Vitality", "MOUZ", fmt="bo3", maps=["Mirage"])

@@ -19,6 +19,7 @@ from pathlib import Path
 
 from .config import ROOT, load_config           # injeta vendor/ no sys.path
 from .model import FORMAT_HOURS, EloModel
+from .model_maps import MapEloModel, predict_series_with_maps
 
 from predictor_core.data.contracts import PredictionPoint
 from predictor_core.kernel.obs import emit_event
@@ -31,26 +32,50 @@ def _log_path() -> Path:
                                ROOT / "data" / "predictions.jsonl"))
 
 
+def _cover(score_probs: dict, handicap: float, *, side_a: bool = True) -> float:
+    """P(o lado escolhido cobrir `handicap` de mapas) dado score_probs na
+    perspectiva de A ("wa-wb") — mesma regra de EloModel.predict_handicap,
+    aplicável a qualquer distribuição de placar (série i.i.d. ou por-mapa).
+    side_a=False cobre para B — NÃO é o complemento de side_a=True (são
+    eventos distintos: A cobrir -1.5 é vencer 2-0, B cobrir -1.5 também é
+    vencer 2-0, o resto da distribuição não pertence a nenhum dos dois)."""
+    covered = 0.0
+    for placar, pr in score_probs.items():
+        wa, wb = (int(x) for x in placar.split("-"))
+        w, l = (wa, wb) if side_a else (wb, wa)
+        if w + handicap > l:
+            covered += pr
+    return covered
+
+
 def run(team_a: str, team_b: str, *, fmt: str = "bo3",
-        handicap: float | None = None, now: datetime | None = None) -> dict:
+        handicap: float | None = None, maps: list[str] | None = None,
+        now: datetime | None = None) -> dict:
     now = now or datetime.now(timezone.utc)
     model = EloModel()
-    r = model.predict_match(team_a, team_b, fmt)
+    if maps:
+        mp = MapEloModel(base=model)
+        r = predict_series_with_maps(mp, team_a, team_b, maps, fmt)
+    else:
+        r = model.predict_match(team_a, team_b, fmt)
     # handicap recomendado: lado de −1.5 do favorito se P(cobrir) > 50%,
     # senão +1.5 do azarão — heurística de exibição, NÃO recomendação de aposta
     fav_first = r["prob_team_a"] >= 0.5
     fav, dog = ((r["team_a"], r["team_b"]) if fav_first
                 else (r["team_b"], r["team_a"]))
     if fmt != "bo1":
-        hc_fav = model.predict_handicap(fav, dog, -1.5, fmt)
+        p_fav_cover = _cover(r["score_probs"], -1.5, side_a=fav_first)
         r["handicap_recomendado"] = (
-            {"team": fav, "handicap": -1.5, "p_cover": hc_fav["p_cover"]}
-            if hc_fav["p_cover"] > 0.5 else
+            {"team": fav, "handicap": -1.5, "p_cover": round(p_fav_cover, 4)}
+            if p_fav_cover > 0.5 else
             {"team": dog, "handicap": +1.5,
-             "p_cover": round(1.0 - hc_fav["p_cover"], 4)})
+             "p_cover": round(1.0 - p_fav_cover, 4)})
         if handicap is not None:
-            r["handicap_consultado"] = model.predict_handicap(
-                team_a, team_b, handicap, fmt)
+            p = _cover(r["score_probs"], handicap, side_a=True)
+            r["handicap_consultado"] = {
+                "team_a": r["team_a"], "team_b": r["team_b"], "format": fmt,
+                "handicap": handicap, "p_cover": round(p, 4),
+                "p_not_cover": round(1.0 - p, 4)}
     r["total_mapas_projetado"] = r["mapas_esperados"]
 
     point = PredictionPoint(
@@ -88,13 +113,19 @@ def main(argv=None) -> int:
                     help="formato da série (default: config default_format)")
     ap.add_argument("--handicap", type=float, default=None,
                     help="handicap de mapas a consultar (ex.: -1.5, +1.5)")
+    ap.add_argument("--maps", default=None,
+                    help="mapas do veto/pool, em ordem, separados por vírgula "
+                         "(ex.: Mirage,Inferno,Ancient) — usa Elo POR MAPA "
+                         "(H3-CS) em vez do Elo de série")
     ap.add_argument("--json", action="store_true", help="saída estruturada")
     args = ap.parse_args(argv)
 
     cfg = load_config()
     fmt = args.format or cfg.get("default_format", "bo3")
+    maps = [m.strip() for m in args.maps.split(",")] if args.maps else None
     try:
-        r = run(args.team_a, args.team_b, fmt=fmt, handicap=args.handicap)
+        r = run(args.team_a, args.team_b, fmt=fmt, handicap=args.handicap,
+                maps=maps)
     except ValueError as e:
         print(str(e), file=sys.stderr)
         return 2
@@ -103,8 +134,16 @@ def main(argv=None) -> int:
         print(json.dumps(r, ensure_ascii=False, indent=2))
         return 0
     print(f"{cfg['game']} {fmt.upper()} — {r['team_a']} vs {r['team_b']}")
-    print(f"  Elo: {r['elo_a']:.0f} x {r['elo_b']:.0f} "
-          f"(P mapa {r['p_map_a']:.1%})")
+    if maps:
+        print(f"  mapas: {', '.join(maps)}")
+        for m in maps:
+            p = r["p_por_mapa"][m]
+            elo = r["elo_por_mapa"][m]
+            print(f"    {m}: {elo[r['team_a']]:.0f} x {elo[r['team_b']]:.0f} "
+                  f"(P {r['team_a']} {p:.1%})")
+    else:
+        print(f"  Elo: {r['elo_a']:.0f} x {r['elo_b']:.0f} "
+              f"(P mapa {r['p_map_a']:.1%})")
     print(f"  série: {r['team_a']} {r['prob_team_a']:.1%} | "
           f"{r['team_b']} {r['prob_team_b']:.1%} | "
           f"mapas esperados {r['total_mapas_projetado']:.2f}")
@@ -116,8 +155,11 @@ def main(argv=None) -> int:
         h = r["handicap_consultado"]
         print(f"  consultado: {h['team_a']} {h['handicap']:+.1f} → "
               f"P cobrir {h['p_cover']:.1%}")
-    if r["model"] == "elo-platt-fase1":
-        print("  [Fase 1: Elo vivido (ratings.json) + Platt calibrado]")
+    if r["model"] in ("elo-platt-fase1", "elo-mapa-platt-h3"):
+        rotulo = ("Fase 1: Elo vivido (ratings.json) + Platt calibrado"
+                  if r["model"] == "elo-platt-fase1" else
+                  "Fase 1+ (H3): Elo POR MAPA (ratings_maps.json) + Platt calibrado")
+        print(f"  [{rotulo}]")
     else:
         print("  [Fase 0: Elo semeado pelo ranking HLTV — sem histórico ainda]")
     return 0

@@ -21,6 +21,7 @@ from .model import EloModel, win_probability
 
 MAP_K = 32
 _SEP = "||"
+_NEED = {"bo1": 1, "bo3": 2, "bo5": 3}
 
 
 def _key(team: str, map_name: str) -> str:
@@ -78,6 +79,44 @@ class MapEloModel:
         self.path.write_text(
             json.dumps({k: round(v, 1) for k, v in sorted(self.ratings.items())},
                        ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def predict_series_with_maps(mp: "MapEloModel", team_a: str, team_b: str,
+                             maps: list[str], fmt: str) -> dict:
+    """Previsão de série usando o Elo POR MAPA nos mapas reais do
+    veto/pool (em vez do Elo de série único tratando todo mapa como
+    igual). `maps` na ordem em que serão jogados (ou pool restante, se a
+    ordem exata ainda não é conhecida — a prob. de série não depende da
+    ordem, só o placar mapa-a-mapa individual reportado depende)."""
+    fmt = fmt.lower()
+    if fmt not in _NEED:
+        raise ValueError(f"formato desconhecido: {fmt!r} (use bo1/bo3/bo5)")
+    need = _NEED[fmt]
+    if len(maps) < need:
+        raise ValueError(f"{fmt} precisa de pelo menos {need} mapa(s) "
+                         f"informado(s), recebi {len(maps)}")
+    a, _ = mp.base._elo(team_a)
+    b, _ = mp.base._elo(team_b)
+    if a == b:
+        raise ValueError("um time não joga contra si mesmo")
+    p_por_mapa = [mp.win_probability(a, b, m) for m in maps]
+    dist = series_probs_hetero(p_por_mapa, need)
+    prob_a = sum(pr for placar, pr in dist.items()
+                 if int(placar.split("-")[0]) > int(placar.split("-")[1]))
+    mapas_esp = sum((int(s.split("-")[0]) + int(s.split("-")[1])) * pr
+                    for s, pr in dist.items())
+    prob_cal = mp.base.platt.apply(prob_a) if mp.base.platt else prob_a
+    return {"team_a": a, "team_b": b, "format": fmt,
+            "maps": list(maps),
+            "elo_por_mapa": {m: {a: round(mp.elo(a, m), 1),
+                                  b: round(mp.elo(b, m), 1)} for m in maps},
+            "p_por_mapa": {m: round(p, 4) for m, p in zip(maps, p_por_mapa)},
+            "prob_team_a": round(prob_cal, 4),
+            "prob_team_b": round(1.0 - prob_cal, 4),
+            "prob_team_a_raw": round(prob_a, 4),
+            "mapas_esperados": round(mapas_esp, 2),
+            "score_probs": {s: round(pr, 4) for s, pr in dist.items()},
+            "model": "elo-mapa-platt-h3" if mp.base.platt else "elo-mapa-h3"}
 
 
 def series_probs_hetero(probs: list[float], need: int) -> dict:
