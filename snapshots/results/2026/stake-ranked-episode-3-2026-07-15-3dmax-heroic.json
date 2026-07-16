@@ -1,0 +1,27 @@
+{
+  "event_id": "stake-ranked-episode-3-2026-07-15-3dmax-heroic",
+  "winner": "HEROIC",
+  "score": {
+    "team_a": 1,
+    "team_b": 2
+  },
+  "maps": [
+    {
+      "name": "Inferno",
+      "score_a": 8,
+      "score_b": 13
+    },
+    {
+      "name": "Cache",
+      "score_a": 13,
+      "score_b": 8
+    },
+    {
+      "name": "Nuke",
+      "score_a": 8,
+      "score_b": 13
+    }
+  ],
+  "result_source": "HLTV match record: https://www.hltv.org/matches/2395697/3dmax-vs-heroic-stake-ranked-episode-3",
+  "result_retrieved_at_utc": "2026-07-16T16:31:12Z"
+}
