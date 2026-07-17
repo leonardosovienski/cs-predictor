@@ -92,8 +92,9 @@ def predict_series_with_maps(mp: "MapEloModel", team_a: str, team_b: str,
     if fmt not in _NEED:
         raise ValueError(f"formato desconhecido: {fmt!r} (use bo1/bo3/bo5)")
     need = _NEED[fmt]
-    if len(maps) < need:
-        raise ValueError(f"{fmt} precisa de pelo menos {need} mapa(s) "
+    required = 2 * need - 1
+    if len(maps) != required:
+        raise ValueError(f"{fmt} precisa de exatamente {required} mapa(s) potenciais "
                          f"informado(s), recebi {len(maps)}")
     a, _ = mp.base._elo(team_a)
     b, _ = mp.base._elo(team_b)
@@ -128,6 +129,14 @@ def series_probs_hetero(probs: list[float], need: int) -> dict:
 
     Retorna {"wa-wb": probabilidade} na perspectiva de A, só placares
     finais (onde um dos dois lados chega em `need`)."""
+    if not isinstance(need, int) or isinstance(need, bool) or need < 1:
+        raise ValueError("need deve ser inteiro positivo")
+    required = 2 * need - 1
+    if len(probs) != required:
+        raise ValueError(f"série até {need} exige exatamente {required} probabilidades")
+    if any(isinstance(p, bool) or not isinstance(p, (int, float)) or not 0.0 <= p <= 1.0
+           for p in probs):
+        raise ValueError("probabilidades devem estar entre 0 e 1")
     from collections import defaultdict
     dist = {(0, 0): 1.0}
     final: dict[tuple[int, int], float] = defaultdict(float)

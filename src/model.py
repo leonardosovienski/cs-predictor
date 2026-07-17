@@ -20,6 +20,30 @@ from .calibration import PlattCalibrator
 from .config import ROOT, load_config, load_teams, resolve_team
 
 K_FACTORS = {"bo1": 32, "bo3": 40, "bo5": 48}
+
+
+def infer_format(result_a: int, result_b: int,
+                 advertised: str | None = None) -> str:
+    """Normaliza o formato usando placar terminal e rótulo da fonte.
+
+    O HLTV pode mostrar o nome de um mapa no lugar de ``bo3``/``bo5`` na
+    listagem. Placares 2-x e 3-x são, respectivamente, séries BO3 e BO5;
+    placares maiores são rounds de um BO1 e preservam o rótulo BO1.
+    """
+    if any(isinstance(value, bool) or not isinstance(value, int) or value < 0
+           for value in (result_a, result_b)):
+        raise ValueError("placar inválido")
+    fmt = advertised.lower() if isinstance(advertised, str) else None
+    if fmt not in K_FACTORS:
+        fmt = None
+    maximum = max(result_a, result_b)
+    if maximum == 2:
+        return "bo3"
+    if maximum == 3:
+        return "bo5"
+    if fmt is not None:
+        return fmt
+    return "bo1"
 # duração típica de parede de relógio por formato (matures_at do serving)
 FORMAT_HOURS = {"bo1": 1.5, "bo3": 3.0, "bo5": 5.0}
 
@@ -134,13 +158,13 @@ class EloModel:
                 "p_not_cover": round(1.0 - covered, 4)}
 
     def update_ratings(self, team_a: str, team_b: str,
-                       result_a: int, result_b: int) -> dict:
-        """Atualiza o Elo após partida real. K pelo formato inferido do placar
-        (soma ≤1 → BO1; ≤3 → BO3; senão BO5). Persiste em ratings_file."""
+                       result_a: int, result_b: int,
+                       format: str | None = None) -> dict:
+        """Atualiza o Elo após partida real, normalizando formato pelo placar
+        terminal e pelo rótulo opcional da fonte. Persiste em ratings_file."""
         a, elo_a = self._elo(team_a)
         b, elo_b = self._elo(team_b)
-        total = result_a + result_b
-        fmt = "bo1" if total <= 1 else ("bo3" if total <= 3 else "bo5")
+        fmt = infer_format(result_a, result_b, format)
         k = K_FACTORS[fmt]
         s_a = 1.0 if result_a > result_b else 0.0
         e_a = win_probability(elo_a, elo_b)

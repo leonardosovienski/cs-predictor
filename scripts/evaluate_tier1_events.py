@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from src.config import load_config  # noqa: E402
-from src.model import K_FACTORS, series_probs, win_probability  # noqa: E402
+from src.model import K_FACTORS, infer_format, series_probs, win_probability  # noqa: E402
 from src.model_maps import MAP_K, series_probs_hetero  # noqa: E402
 from src.model_maps_shrunk import HistoricalVetoProxy, ShrunkMapElo, series_probability as shrunk_series_probability  # noqa: E402
 
@@ -36,11 +36,12 @@ def _series_probability(probabilities: list[float]) -> float:
 
 
 def _metrics(rows: list[dict[str, Any]], key: str) -> dict[str, float | int]:
-    n = len(rows)
+    values = [row for row in rows if isinstance(row.get(key), (int, float))]
+    n = len(values)
     if not n:
         return {"n": 0}
-    brier = sum((row[key] - row["outcome_a"]) ** 2 for row in rows) / n
-    accuracy = sum((row[key] >= 0.5) == bool(row["outcome_a"]) for row in rows) / n
+    brier = sum((row[key] - row["outcome_a"]) ** 2 for row in values) / n
+    accuracy = sum((row[key] >= 0.5) == bool(row["outcome_a"]) for row in values) / n
     return {"n": n, "brier": round(brier, 6), "accuracy": round(accuracy, 6)}
 
 
@@ -69,7 +70,7 @@ def evaluate(conn: sqlite3.Connection, events: set[str]) -> dict[str, Any]:
         # Infer format exactly as EloModel.update_ratings does, from a closed
         # series score, rather than silently discarding the major-event data.
         total_maps = sa + sb
-        fmt = "bo1" if total_maps <= 1 else ("bo3" if total_maps <= 3 else "bo5")
+        fmt = infer_format(sa, sb, _stored_format)
         ea, eb = series_elo.get(a, default), series_elo.get(b, default)
         pre_match_elo = {a: ea, b: eb}
         p_map = win_probability(ea, eb)
@@ -86,7 +87,11 @@ def evaluate(conn: sqlite3.Connection, events: set[str]) -> dict[str, Any]:
                 probabilities.append(win_probability(ma, mb))
             scenarios = veto.scenarios(a, b)
             evaluated[event].append({"outcome_a": 1 if sa > sb else 0, "h1": p_h1,
-                                     "h3_post_veto": _series_probability(probabilities),
+                                     # Em 2-0 o banco só contém os dois mapas
+                                     # jogados, não o decider planejado. Não
+                                     # invente a terceira probabilidade.
+                                     "h3_post_veto": (_series_probability(probabilities)
+                                                       if len(probabilities) == 3 else None),
                                      "h4_pre_veto": shrunk_series_probability(h4, a, b, scenarios,
                                          base_a=ea, base_b=eb, now_ts=now_ts)})
 
@@ -118,16 +123,16 @@ def evaluate(conn: sqlite3.Connection, events: set[str]) -> dict[str, Any]:
                                _metrics(event_rows, "h4_pre_veto"))
         per_event[event] = {"h1": h1, "h3_post_veto": h3,
                             "h4_pre_veto": h4_metrics,
-                            "delta_brier_h3_minus_h1": round(h3.get("brier", 0) - h1.get("brier", 0), 6) if event_rows else None,
+                            "delta_brier_h3_minus_h1": None,
                             "delta_brier_h4_minus_h1": round(h4_metrics.get("brier", 0) - h1.get("brier", 0), 6) if event_rows else None}
     h1, h3, h4_metrics = (_metrics(all_rows, "h1"), _metrics(all_rows, "h3_post_veto"),
                            _metrics(all_rows, "h4_pre_veto"))
     return {"protocol": {"mode": "global prequential", "seed": f"neutral {default:.0f}; no future ranking seed",
                          "h1": "series Elo raw (no Platt, to avoid future-fitted calibrator leakage)",
-                         "h3_post_veto": "map Elo with actual played maps; not a pre-event forecast", "database_write": False, "ratings_write": False},
+                         "h3_post_veto": "only complete three-map records; outcome-conditioned diagnostic, not evidence", "database_write": False, "ratings_write": False},
             "events": per_event, "aggregate": {"h1": h1, "h3_post_veto": h3,
             "h4_pre_veto": h4_metrics,
-            "delta_brier_h3_minus_h1": round(h3["brier"] - h1["brier"], 6) if all_rows else None,
+            "delta_brier_h3_minus_h1": None,
             "delta_brier_h4_minus_h1": round(h4_metrics["brier"] - h1["brier"], 6) if all_rows else None}}
 
 

@@ -28,6 +28,7 @@ A primeira cadeia real está íntegra e permanece fora do core do preditor:
 
 - O PRE_EVENT foi gerado em `2026-07-15T11:10:34Z`, antes do horário previsto nele (`12:30Z`) e antes do horário pós-jogo exibido pela HLTV (`14:00Z`).
 - O MATURED referencia diretamente o hash do PRE_EVENT e o verificador aceitou o artefato original.
+- O verificador atual também recalcula o hash do MATURED, valida placar/mapas/vencedor, fonte, métricas e ordem temporal; `snapshot-status` não confia apenas na existência do arquivo.
 - `cs.db` permaneceu em `a7dbef610b176250e3b1d7fe91ac2d79acac13e2c258884c46e35ab0e2c6f2ee`; `ratings.json`, em `40379586465d8958957b068f3e65ebb59fec575f6521673e7b9674bcb132e516`.
 - A maturação declara `model_reexecuted=false`, `database_write=false` e `ratings_write=false`.
 

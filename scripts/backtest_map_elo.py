@@ -12,11 +12,12 @@ da janela de medição; requer que os DOIS times já tenham >= min_map_obs
 observações NAQUELE MAPA especificamente (senão a semente = Elo de série
 e a comparação seria com ela mesma).
 
-Ao final materializa data/ratings_maps.json.
+Somente com ``--write-artifacts`` materializa data/ratings_maps.json.
 
 Saída: data/map_elo_summary.json + relatório no stdout.
 """
 import json
+import argparse
 import statistics as st
 import sys
 from collections import defaultdict
@@ -29,7 +30,7 @@ sys.path.insert(0, str(ROOT / "vendor"))
 
 from src import db                                     # noqa: E402
 from src.config import load_config                     # noqa: E402
-from src.model import EloModel, win_probability         # noqa: E402
+from src.model import EloModel, K_FACTORS, infer_format, win_probability  # noqa: E402
 from src.model_maps import MapEloModel                  # noqa: E402
 from predictor_core.measurement.metrics import (        # noqa: E402
     brier, diebold_mariano, log_loss)
@@ -43,54 +44,77 @@ def _ln(p, eps=1e-12):
 
 
 def run(cfg, conn):
-    base = EloModel()                          # Elo de série vivido (baseline)
+    default = float(cfg.get("backtest", {}).get("default_seed_elo", 1400.0))
+    matches = conn.execute(
+        "SELECT match_id, date, ts, team_a, team_b, score_a, score_b, format "
+        "FROM matches ORDER BY date, ts, match_id").fetchall()
+    if not matches:
+        sys.exit("matches vazio — rode python -m src.ingest_hltv")
+    teams = {name for row in matches for name in (row[3], row[4])}
+    # Elo neutro e reconstruído cronologicamente. Não carrega ratings.json nem
+    # o Top 30 futuro como semente do histórico.
+    base = EloModel(ratings_file=ROOT / "data" / ".backtest-neutral-missing.json")
+    base.ratings = {team: default for team in teams}
+    base.platt = None
     mp = MapEloModel(base=base)
     mp.ratings = {}                            # zera: recomputa do zero aqui
 
     seen_map = defaultdict(int)                # (team,map) -> observações vistas
 
-    rows = conn.execute(
-        "SELECT mm.match_id, m.date, m.ts, mm.seq, mm.map_name, "
-        "mm.team_a, mm.team_b, mm.score_a, mm.score_b "
-        "FROM match_maps mm JOIN matches m ON m.match_id = mm.match_id "
-        "ORDER BY m.date, m.ts, mm.match_id, mm.seq").fetchall()
-    if not rows:
+    map_rows = conn.execute(
+        "SELECT match_id, seq, map_name, team_a, team_b, score_a, score_b "
+        "FROM match_maps ORDER BY match_id, seq").fetchall()
+    if not map_rows:
         sys.exit("match_maps vazio — rode python -m src.ingest_hltv_maps")
+    maps_by_match = defaultdict(list)
+    for row in map_rows:
+        maps_by_match[row[0]].append(row[1:])
     burnin = int(cfg.get("backtest", {}).get("burnin_days", 0))
-    cut = (datetime.fromisoformat(rows[0][1])
+    cut = (datetime.fromisoformat(matches[0][1])
            + timedelta(days=burnin)).strftime("%Y-%m-%d")
 
     probs_map, probs_serie, outs, loss_map, loss_serie = [], [], [], [], []
-    for mid, d, ts, seq, mapa, a, b, sa, sb in rows:
-        if sa == sb:
-            continue
-        y = 1.0 if sa > sb else 0.0
-        p_map_model = mp.win_probability(a, b, mapa)
-        try:
-            _, ea = base._elo(a)
-            _, eb = base._elo(b)
-            p_serie = win_probability(ea, eb)
-        except ValueError:
-            p_serie = 0.5
-
-        ka, kb = seen_map[(a, mapa)], seen_map[(b, mapa)]
-        if d >= cut and ka >= MIN_MAP_OBS and kb >= MIN_MAP_OBS:
-            probs_map.append([p_map_model, 1 - p_map_model])
-            probs_serie.append([p_serie, 1 - p_serie])
-            outs.append(0 if y == 1.0 else 1)
-            loss_map.append(-_ln(p_map_model if y == 1.0 else 1 - p_map_model))
-            loss_serie.append(-_ln(p_serie if y == 1.0 else 1 - p_serie))
-
-        mp.update(a, b, mapa, sa, sb)
-        seen_map[(a, mapa)] += 1
-        seen_map[(b, mapa)] += 1
+    for mid, d, _ts, a, b, series_a, series_b, stored_fmt in matches:
+        ea, eb = base.ratings[a], base.ratings[b]
+        p_serie = win_probability(ea, eb)
+        for _seq, mapa, map_a, map_b, sa, sb in maps_by_match.get(mid, []):
+            if sa == sb:
+                continue
+            y = 1.0 if sa > sb else 0.0
+            p_map_model = mp.win_probability(map_a, map_b, mapa)
+            # O baseline usa o Elo pré-série na mesma orientação do mapa.
+            if (map_a, map_b) == (a, b):
+                p_series_map = p_serie
+            elif (map_a, map_b) == (b, a):
+                p_series_map = 1.0 - p_serie
+            else:
+                raise ValueError(f"times do mapa não correspondem à série {mid}")
+            ka, kb = seen_map[(map_a, mapa)], seen_map[(map_b, mapa)]
+            if d >= cut and ka >= MIN_MAP_OBS and kb >= MIN_MAP_OBS:
+                probs_map.append([p_map_model, 1 - p_map_model])
+                probs_serie.append([p_series_map, 1 - p_series_map])
+                outs.append(0 if y == 1.0 else 1)
+                loss_map.append(-_ln(p_map_model if y == 1.0 else 1 - p_map_model))
+                loss_serie.append(-_ln(p_series_map if y == 1.0 else 1 - p_series_map))
+            mp.update(map_a, map_b, mapa, sa, sb)
+            seen_map[(map_a, mapa)] += 1
+            seen_map[(map_b, mapa)] += 1
+        # Só depois de prever/atualizar todos os mapas a série entra no Elo-base.
+        if series_a != series_b:
+            fmt = infer_format(series_a, series_b, stored_fmt)
+            delta = K_FACTORS[fmt] * ((1.0 if series_a > series_b else 0.0) - p_serie)
+            base.ratings[a], base.ratings[b] = ea + delta, eb - delta
 
     return {"probs_map": probs_map, "probs_serie": probs_serie, "outs": outs,
             "loss_map": loss_map, "loss_serie": loss_serie,
-            "mp": mp, "n_total": len(rows)}
+            "mp": mp, "n_total": len(map_rows), "seed": f"neutral {default:.0f}"}
 
 
-def main():
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Backtest prequential H3 (read-only por padrão)")
+    parser.add_argument("--write-artifacts", action="store_true",
+                        help="autoriza atualizar ratings_maps.json e map_elo_summary.json")
+    args = parser.parse_args(argv)
     cfg = load_config()
     conn = db.connect(str(ROOT / cfg.get("database", "data/cs.db")), read_only=True)
     r = run(cfg, conn)
@@ -125,12 +149,15 @@ def main():
                           "dm_stat": round(dm_stat, 3), "dm_p": round(dm_p, 5),
                           "verdict": "COMPROVADA" if ok else "REFUTADA"}
 
-    r["mp"].save()
-    print(f"\nserving materializado: ratings_maps.json "
-          f"({len(r['mp'].ratings)} pares time-mapa)")
-    (ROOT / "data" / "map_elo_summary.json").write_text(
-        json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print("artefato: map_elo_summary.json")
+    if args.write_artifacts:
+        r["mp"].save()
+        print(f"\nserving materializado: ratings_maps.json "
+              f"({len(r['mp'].ratings)} pares time-mapa)")
+        (ROOT / "data" / "map_elo_summary.json").write_text(
+            json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print("artefato: map_elo_summary.json")
+    else:
+        print("\nread-only: nenhum rating/artefato escrito; use --write-artifacts com autorização")
 
 
 if __name__ == "__main__":

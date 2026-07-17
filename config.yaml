@@ -22,6 +22,6 @@ hltv:
 backtest:
   burnin_days: 90           # ratings convergem da semente antes de medir
   min_team_matches: 10      # Brier só conta jogo onde ambos têm histórico
-  default_seed_elo: 1400    # time fora do Top 30 semeado abaixo do #30
+  default_seed_elo: 1400    # semente neutra para todos os times no backtest
   bootstrap_iterations: 1000
   bootstrap_seed: 13

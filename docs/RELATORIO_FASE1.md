@@ -1,5 +1,13 @@
 # Relatório da Fase 1 — cs-predictor (2026-07-11)
 
+> **Registro histórico, superado pela auditoria de 2026-07-16.** A execução
+> original usou o Top 30 de julho/2026 como semente de partidas anteriores e
+> continha formatos inconsistentes. O backtest corrigido usa semente neutra,
+> normaliza formato sem escrever no banco e, em execução read-only, obteve
+> Brier 0,4602, acerto 62,5% e DM p<0,0001. Os ratings e a calibração canônicos
+> foram rematerializados com autorização em 2026-07-16; veja
+> `RELATORIO_REMATERIALIZACAO_2026-07-16.md`.
+
 ## Fonte e dataset
 
 **HLTV de primeira mão**: o 403 da Fase 0 caiu com curl_cffi + impersonate

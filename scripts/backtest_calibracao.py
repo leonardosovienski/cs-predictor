@@ -13,6 +13,7 @@ Se COMPROVADA: ajusta o Platt no histórico COMPLETO e materializa
 data/calibration_platt.json — o serving (model.predict_match) passa a
 aplicar automaticamente.
 """
+import argparse
 import json
 import statistics as st
 import sys
@@ -58,7 +59,11 @@ def calibrated_stream(probs_m, outs):
     return out
 
 
-def main():
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Backtest Platt H2 (read-only por padrão)")
+    parser.add_argument("--write-artifacts", action="store_true",
+                        help="autoriza atualizar trial, calibração e resumo")
+    args = parser.parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     cfg = load_config()
@@ -73,7 +78,7 @@ def main():
                         "invariante": "cal(1-p)=1-cal(p)"},
               "base": "h1-cs-elo-serie-prequential (mesmo Elo, mesma passada)",
               "period": "2024-12..2026-07"}
-    if nome not in ja:
+    if nome not in ja and args.write_artifacts:
         reg.register(nome, params=params, sharpe=None,
                      notes="N+2: correção simétrica do Platt sobre a probabilidade "
                            "de série do Elo; intercepto fixo em zero para impedir "
@@ -107,15 +112,16 @@ def main():
               f"prev {c['mean_pred']:.2f} vs real {c['obs_freq']:.2f}")
 
     # 3) resultado gravado na trial
-    t = next(t for t in reg.load() if t["name"] == nome)
-    reg.register(nome, params=t["params"], sharpe=None,
-                 notes=t["notes"] + f" | RESULTADO 2026-07-11: "
-                 f"{'COMPROVADA' if ok else 'REFUTADA'} — Brier {br_raw:.4f} "
-                 f"-> {br_cal:.4f}, DM p={dm_p:.5f}, n={n}.",
-                 test_period=t.get("test_period"))
+    if args.write_artifacts:
+        t = next(t for t in reg.load() if t["name"] == nome)
+        reg.register(nome, params=t["params"], sharpe=None,
+                     notes=t["notes"] + f" | RESULTADO protocolo corrigido 2026-07-16: "
+                     f"{'COMPROVADA' if ok else 'REFUTADA'} — Brier {br_raw:.4f} "
+                     f"-> {br_cal:.4f}, DM p={dm_p:.5f}, n={n}.",
+                     test_period=t.get("test_period"))
 
     # 4) se comprovada, materializa o Platt do histórico completo p/ serving
-    if ok:
+    if ok and args.write_artifacts:
         full = PlattCalibrator().fit(raw, [1 if y == 0 else 0 for y in outs])
         full.save(ROOT / "data" / "calibration_platt.json",
                   meta={"fitted_on": n, "brier_raw": round(br_raw, 4),
@@ -123,12 +129,15 @@ def main():
                         "trial": nome})
         print(f"\nserving: calibration_platt.json materializado "
               f"(a={full.a:.4f}, b={full.b:.4f}) — a<1 achata as pontas")
-    summary_path = ROOT / "data" / "calibracao_summary.json"
-    summary_path.write_text(json.dumps({
-        "trial": nome, "n": n, "brier_raw": round(br_raw, 4), "brier_cal": round(br_cal, 4),
-        "dm_p": round(dm_p, 6), "verdict": "COMPROVADA" if ok else "REFUTADA",
-        "calibracao_pos": tab}, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8")
+    if args.write_artifacts:
+        summary_path = ROOT / "data" / "calibracao_summary.json"
+        summary_path.write_text(json.dumps({
+            "trial": nome, "n": n, "brier_raw": round(br_raw, 4), "brier_cal": round(br_cal, 4),
+            "dm_p": round(dm_p, 6), "verdict": "COMPROVADA" if ok else "REFUTADA",
+            "calibracao_pos": tab}, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8")
+    else:
+        print("\nread-only: nenhum artefato escrito; use --write-artifacts com autorização")
 
 
 if __name__ == "__main__":

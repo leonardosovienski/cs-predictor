@@ -178,7 +178,9 @@ def _atomic_create(path: Path, payload: dict[str, Any]) -> None:
         with temporary.open("x", encoding="utf-8", newline="\n") as handle:
             handle.write(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n")
             handle.flush(); os.fsync(handle.fileno())
-        os.replace(temporary, path)
+        # Hard-link cria o nome final de forma atômica e falha se ele já
+        # existir. Diferente de os.replace, nunca sobrescreve outro snapshot.
+        os.link(temporary, path)
     except FileExistsError as exc:
         raise SnapshotError(f"snapshot já existe; overwrite proibido: {path.name}") from exc
     finally:
@@ -249,20 +251,54 @@ def load_and_verify_snapshot(path: Path) -> dict[str, Any]:
     return payload
 
 
-def _load_result(path: Path, pre: dict[str, Any]) -> dict[str, Any]:
-    try:
-        result = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise SnapshotError(f"resultado ilegível: {exc}") from exc
+def _validate_result(result: Any, pre: dict[str, Any]) -> dict[str, Any]:
     required = {"event_id", "winner", "score", "result_source", "result_retrieved_at_utc"}
     if not isinstance(result, dict) or any(key not in result for key in required) or result["event_id"] != pre["event_id"]:
         raise SnapshotError("resultado não corresponde ao PRE_EVENT")
     if result["winner"] not in {pre["team_a"], pre["team_b"]}:
         raise SnapshotError("vencedor não pertence ao evento")
-    if not isinstance(result["score"], dict) or not all(isinstance(result["score"].get(key), int) for key in ("team_a", "team_b")):
+    if (not isinstance(result["score"], dict)
+            or not all(isinstance(result["score"].get(key), int)
+                       and not isinstance(result["score"].get(key), bool)
+                       and result["score"][key] >= 0
+                       for key in ("team_a", "team_b"))):
         raise SnapshotError("placar inválido")
-    _utc(str(result["result_retrieved_at_utc"]), "result_retrieved_at_utc")
+    score_a, score_b = result["score"]["team_a"], result["score"]["team_b"]
+    need = {"bo1": 1, "bo3": 2, "bo5": 3}[pre["format"]]
+    if max(score_a, score_b) != need or score_a == score_b:
+        raise SnapshotError(f"placar terminal incompatível com {pre['format']}")
+    expected_winner = pre["team_a"] if score_a > score_b else pre["team_b"]
+    if result["winner"] != expected_winner:
+        raise SnapshotError("vencedor contradiz o placar")
+    if not isinstance(result["result_source"], str) or not result["result_source"].strip():
+        raise SnapshotError("fonte oficial ausente")
+    retrieved = _utc(str(result["result_retrieved_at_utc"]), "result_retrieved_at_utc")
+    if retrieved < _utc(pre["scheduled_start_utc"], "scheduled_start_utc"):
+        raise SnapshotError("resultado recuperado antes do início do evento")
+    maps = result.get("maps")
+    if not isinstance(maps, list) or len(maps) != score_a + score_b:
+        raise SnapshotError("mapas jogados não correspondem ao placar da série")
+    wins_a = wins_b = 0
+    for item in maps:
+        if (not isinstance(item, dict) or not isinstance(item.get("name"), str)
+                or not item["name"].strip()
+                or any(isinstance(item.get(key), bool) or not isinstance(item.get(key), int)
+                       or item[key] < 0 for key in ("score_a", "score_b"))
+                or item["score_a"] == item["score_b"]):
+            raise SnapshotError("mapa jogado inválido")
+        wins_a += item["score_a"] > item["score_b"]
+        wins_b += item["score_b"] > item["score_a"]
+    if (wins_a, wins_b) != (score_a, score_b):
+        raise SnapshotError("vencedores dos mapas contradizem o placar da série")
     return result
+
+
+def _load_result(path: Path, pre: dict[str, Any]) -> dict[str, Any]:
+    try:
+        result = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise SnapshotError(f"resultado ilegível: {exc}") from exc
+    return _validate_result(result, pre)
 
 
 def mature_snapshot(*, event_id: str, year: int, result_file: Path, snapshots_root: Path, now: datetime | None = None) -> Path:
@@ -274,7 +310,14 @@ def mature_snapshot(*, event_id: str, year: int, result_file: Path, snapshots_ro
     if target.exists():
         raise SnapshotError("maturação já existe; overwrite proibido")
     result = _load_result(result_file, pre)
-    matured = _utc_text(now or datetime.now(timezone.utc))
+    matured_at = now or datetime.now(timezone.utc)
+    if matured_at.tzinfo is None or matured_at.utcoffset() is None:
+        raise SnapshotError("matured_at_utc exige timezone")
+    matured_at = matured_at.astimezone(timezone.utc)
+    retrieved_at = _utc(result["result_retrieved_at_utc"], "result_retrieved_at_utc")
+    if matured_at < retrieved_at:
+        raise SnapshotError("maturação anterior à recuperação do resultado")
+    matured = _utc_text(matured_at)
     winner_probability = pre["final_probability"]["team_a"] if result["winner"] == pre["team_a"] else pre["final_probability"]["team_b"]
     payload: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION, "status": MATURED, "event_id": pre["event_id"],
@@ -291,6 +334,54 @@ def mature_snapshot(*, event_id: str, year: int, result_file: Path, snapshots_ro
     return target
 
 
+def load_and_verify_matured_snapshot(path: Path, *, snapshots_root: Path | None = None) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise SnapshotError(f"MATURED ilegível: {exc}") from exc
+    required = {"schema_version", "status", "event_id", "pre_event_path",
+                "pre_event_payload_hash", "result_source", "result_retrieved_at_utc",
+                "matured_at_utc", "official_result", "metrics", "tools_provenance",
+                "consumer_provenance", "audit_metadata", "payload_hash"}
+    missing = sorted(required - set(payload)) if isinstance(payload, dict) else sorted(required)
+    if (not isinstance(payload, dict) or missing
+            or payload.get("schema_version") != SCHEMA_VERSION
+            or payload.get("status") != MATURED):
+        raise SnapshotError(f"snapshot MATURED inválido: campos ausentes {missing}")
+    if _payload_hash(payload) != payload["payload_hash"]:
+        raise SnapshotError("hash do MATURED inconsistente")
+    if not isinstance(payload["pre_event_path"], str) or not payload["pre_event_path"].strip():
+        raise SnapshotError("pre_event_path inválido")
+    root = (snapshots_root or path.parents[2]).resolve()
+    pre_path = (root / payload["pre_event_path"]).resolve()
+    try:
+        pre_path.relative_to(root)
+    except ValueError as exc:
+        raise SnapshotError("pre_event_path escapa da raiz de snapshots") from exc
+    pre = load_and_verify_snapshot(pre_path)
+    if payload["event_id"] != pre["event_id"] or payload["pre_event_payload_hash"] != pre["payload_hash"]:
+        raise SnapshotError("vínculo MATURED/PRE_EVENT inconsistente")
+    official = payload["official_result"]
+    if not isinstance(official, dict):
+        raise SnapshotError("official_result inválido")
+    result = {"event_id": payload["event_id"], "winner": official.get("winner"),
+              "score": official.get("score"), "maps": official.get("maps"),
+              "result_source": payload["result_source"],
+              "result_retrieved_at_utc": payload["result_retrieved_at_utc"]}
+    _validate_result(result, pre)
+    matured_at = _utc(payload["matured_at_utc"], "matured_at_utc")
+    if matured_at < _utc(payload["result_retrieved_at_utc"], "result_retrieved_at_utc"):
+        raise SnapshotError("ordem temporal do MATURED inválida")
+    winner_p = (pre["final_probability"]["team_a"] if result["winner"] == pre["team_a"]
+                else pre["final_probability"]["team_b"])
+    expected = {"winner_probability": winner_p,
+                "winner_brier": round((1.0 - winner_p) ** 2, 8),
+                "winner_hit": result["winner"] == pre["favorite"]}
+    if not isinstance(payload["metrics"], dict) or payload["metrics"] != expected:
+        raise SnapshotError("métricas do MATURED inconsistentes")
+    return payload
+
+
 def snapshot_status(*, year: int, snapshots_root: Path) -> dict[str, Any]:
     entries = []
     folder = snapshots_root / "pre_event" / str(year)
@@ -298,10 +389,12 @@ def snapshot_status(*, year: int, snapshots_root: Path) -> dict[str, Any]:
         try:
             pre = load_and_verify_snapshot(pre_path)
             mature = snapshots_root / "matured" / str(year) / pre_path.name
+            if mature.exists():
+                load_and_verify_matured_snapshot(mature, snapshots_root=snapshots_root)
             entries.append({"event_id": pre["event_id"], "pre_event_payload_hash": pre["payload_hash"],
-                            "status": "MATURED" if mature.exists() else "PENDING", "matured_path": str(Path("matured") / str(year) / mature.name) if mature.exists() else None})
+                            "status": "VALID_FORWARD" if mature.exists() else "VERIFIED", "matured_path": str(Path("matured") / str(year) / mature.name) if mature.exists() else None})
         except SnapshotError as exc:
-            entries.append({"snapshot": pre_path.name, "status": "INVALID", "reason": str(exc)})
+            entries.append({"snapshot": pre_path.name, "status": "FAILED", "reason": str(exc)})
     return {"year": year, "entries": entries, "tools_provenance": _tools_provenance()}
 
 
@@ -315,10 +408,13 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         if args.command == "snapshot-pre-event": result: Any = {"path": str(create_pre_event_snapshot(event_file=args.event_file, snapshots_root=args.snapshots_dir))}
-        elif args.command == "verify-snapshot": result = {"snapshot": load_and_verify_snapshot(args.snapshot), "tools_provenance": _tools_provenance()}
+        elif args.command == "verify-snapshot":
+            raw = json.loads(args.snapshot.read_text(encoding="utf-8"))
+            loader = load_and_verify_matured_snapshot if raw.get("status") == MATURED else load_and_verify_snapshot
+            result = {"snapshot": loader(args.snapshot), "tools_provenance": _tools_provenance()}
         elif args.command == "mature-snapshot": result = {"path": str(mature_snapshot(event_id=args.event_id, year=args.year, result_file=args.result_file, snapshots_root=args.snapshots_dir))}
         else: result = snapshot_status(year=args.year, snapshots_root=args.snapshots_dir)
-    except SnapshotError as exc:
+    except (SnapshotError, OSError, json.JSONDecodeError) as exc:
         print(str(exc), file=sys.stderr); return 2
     print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2)); return 0
 

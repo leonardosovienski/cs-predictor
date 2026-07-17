@@ -65,13 +65,21 @@ _HTML = '''
 <span class="event-name">Circuit X BLAST Open</span>
 <div class="map-text">inf</div>
 </a></div>
+<div class="result-con" data-zonedgrouping-entry-unix="1783730000000">
+<a href="/matches/2372515/team-a-vs-team-b-cup">
+<div class="team team-won">Team &amp; A</div>
+<div class="team ">Team B</div>
+<td class="result-score"><span class="score-won">2</span> - <span class="score-lost">1</span></td>
+<span class="event-name">Cup &amp; Finals</span>
+<div class="map-text">nuke</div>
+</a></div>
 </div>
 '''
 
 
 def test_parse_results_page():
     rows = parse_results_page(_HTML)
-    assert len(rows) == 2
+    assert len(rows) == 3
     r = rows[0]
     assert r["match_id"] == 2372513
     assert (r["team_a"], r["team_b"]) == ("FaZe", "BetBoom")
@@ -82,12 +90,15 @@ def test_parse_results_page():
     # map-text com nome de mapa = BO1
     assert rows[1]["format"] == "bo1"
     assert (rows[1]["score_a"], rows[1]["score_b"]) == (0, 1)
+    assert rows[2]["format"] == "bo3"
+    assert rows[2]["team_a"] == "Team & A"
+    assert rows[2]["event"] == "Cup & Finals"
 
 
 def test_parse_bloco_quebrado_nao_derruba():
     quebrado = _HTML.replace('<td class="result-score"><span class="score-won">2</span> - <span class="score-lost">0</span></td>', "")
     rows = parse_results_page(quebrado)
-    assert len(rows) == 1                     # só o bloco íntegro sobra
+    assert len(rows) == 2                     # só o bloco quebrado fica fora
 
 
 def test_db_upsert_idempotente():

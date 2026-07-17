@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -43,7 +44,9 @@ def _pre(tmp_path: Path) -> Path:
 
 def _result(path: Path, **changes) -> Path:
     value = {"event_id": "test-cs-2030-bo3", "winner": "Vitality", "score": {"team_a": 2, "team_b": 1},
-             "maps": [{"name": "Mirage", "score_a": 13, "score_b": 10}], "result_source": "fixture",
+             "maps": [{"name": "Mirage", "score_a": 13, "score_b": 10},
+                      {"name": "Inferno", "score_a": 8, "score_b": 13},
+                      {"name": "Nuke", "score_a": 13, "score_b": 7}], "result_source": "fixture",
              "result_retrieved_at_utc": "2030-01-02T16:00:00Z"} | changes
     path.write_text(json.dumps(value), encoding="utf-8")
     return path
@@ -107,6 +110,8 @@ def test_matured_links_pre_event_without_model_or_state_changes(tmp_path: Path, 
     matured = snapshots.mature_snapshot(event_id="test-cs-2030-bo3", year=2030, result_file=_result(tmp_path / "result.json"), snapshots_root=tmp_path / "snapshots", now=datetime(2030, 1, 2, 17, tzinfo=timezone.utc))
     payload = json.loads(matured.read_text(encoding="utf-8"))
     assert payload["status"] == snapshots.MATURED and payload["pre_event_payload_hash"] == snapshots.load_and_verify_snapshot(pre)["payload_hash"]
+    assert snapshots.load_and_verify_matured_snapshot(
+        matured, snapshots_root=tmp_path / "snapshots")["payload_hash"] == payload["payload_hash"]
     assert payload["audit_metadata"]["model_reexecuted"] is False
     assert before == (_hash(ROOT / "data" / "cs.db"), _hash(ROOT / "data" / "ratings.json"))
     with pytest.raises(snapshots.SnapshotError, match="já existe"):
@@ -118,6 +123,79 @@ def test_maturity_requires_pre_event_and_status_transitions(tmp_path: Path):
         snapshots.mature_snapshot(event_id="missing", year=2030, result_file=_result(tmp_path / "result.json", event_id="missing"), snapshots_root=tmp_path / "snapshots")
     _pre(tmp_path)
     pending = snapshots.snapshot_status(year=2030, snapshots_root=tmp_path / "snapshots")
-    assert pending["entries"][0]["status"] == "PENDING"
-    snapshots.mature_snapshot(event_id="test-cs-2030-bo3", year=2030, result_file=_result(tmp_path / "result.json"), snapshots_root=tmp_path / "snapshots")
-    assert snapshots.snapshot_status(year=2030, snapshots_root=tmp_path / "snapshots")["entries"][0]["status"] == "MATURED"
+    assert pending["entries"][0]["status"] == "VERIFIED"
+    snapshots.mature_snapshot(event_id="test-cs-2030-bo3", year=2030,
+                              result_file=_result(tmp_path / "result.json"),
+                              snapshots_root=tmp_path / "snapshots",
+                              now=datetime(2030, 1, 2, 17, tzinfo=timezone.utc))
+    assert snapshots.snapshot_status(year=2030, snapshots_root=tmp_path / "snapshots")["entries"][0]["status"] == "VALID_FORWARD"
+
+
+@pytest.mark.parametrize("changes,match", [
+    ({"winner": "Vitality", "score": {"team_a": 0, "team_b": 2}}, "vencedor"),
+    ({"score": {"team_a": 3, "team_b": 0}}, "terminal"),
+    ({"result_source": ""}, "fonte"),
+    ({"result_retrieved_at_utc": "2030-01-02T11:00:00Z"}, "antes do início"),
+    ({"maps": []}, "mapas jogados"),
+])
+def test_maturity_rejects_impossible_results(tmp_path: Path, changes, match):
+    _pre(tmp_path)
+    with pytest.raises(snapshots.SnapshotError, match=match):
+        snapshots.mature_snapshot(
+            event_id="test-cs-2030-bo3", year=2030,
+            result_file=_result(tmp_path / "result.json", **changes),
+            snapshots_root=tmp_path / "snapshots",
+            now=datetime(2030, 1, 2, 17, tzinfo=timezone.utc))
+
+
+def test_maturity_rejects_time_travel_and_status_detects_tampering(tmp_path: Path):
+    _pre(tmp_path)
+    result = _result(tmp_path / "result.json")
+    with pytest.raises(snapshots.SnapshotError, match="anterior"):
+        snapshots.mature_snapshot(
+            event_id="test-cs-2030-bo3", year=2030, result_file=result,
+            snapshots_root=tmp_path / "snapshots",
+            now=datetime(2030, 1, 2, 15, tzinfo=timezone.utc))
+    matured = snapshots.mature_snapshot(
+        event_id="test-cs-2030-bo3", year=2030, result_file=result,
+        snapshots_root=tmp_path / "snapshots",
+        now=datetime(2030, 1, 2, 17, tzinfo=timezone.utc))
+    payload = json.loads(matured.read_text(encoding="utf-8"))
+    payload["metrics"]["winner_brier"] = 999
+    matured.write_text(json.dumps(payload), encoding="utf-8")
+    status = snapshots.snapshot_status(year=2030, snapshots_root=tmp_path / "snapshots")
+    assert status["entries"][0]["status"] == "FAILED"
+    assert "hash" in status["entries"][0]["reason"]
+
+
+def test_matured_semantic_validation_survives_recomputed_hash(tmp_path: Path):
+    _pre(tmp_path)
+    matured = snapshots.mature_snapshot(
+        event_id="test-cs-2030-bo3", year=2030,
+        result_file=_result(tmp_path / "result.json"),
+        snapshots_root=tmp_path / "snapshots",
+        now=datetime(2030, 1, 2, 17, tzinfo=timezone.utc))
+    payload = json.loads(matured.read_text(encoding="utf-8"))
+    payload["official_result"]["score"] = {"team_a": 0, "team_b": 2}
+    payload["payload_hash"] = snapshots._payload_hash(payload)
+    matured.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(snapshots.SnapshotError, match="vencedor"):
+        snapshots.load_and_verify_matured_snapshot(
+            matured, snapshots_root=tmp_path / "snapshots")
+
+
+def test_atomic_create_never_overwrites_under_race(tmp_path: Path):
+    target = tmp_path / "artifact.json"
+    payloads = [{"writer": value} for value in range(8)]
+
+    def create(payload):
+        try:
+            snapshots._atomic_create(target, payload)
+            return True
+        except snapshots.SnapshotError:
+            return False
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        outcomes = list(pool.map(create, payloads))
+    assert outcomes.count(True) == 1
+    assert json.loads(target.read_text(encoding="utf-8")) in payloads

@@ -6,19 +6,20 @@ Desenho (sem lookahead por construção):
 - Elo por MAPA (logística /400); P(série) via combinatória exata
   (model.series_probs) com o formato real da série; update com K por formato
   (32/40/48) sobre o resultado da série — exatamente o contrato do EloModel;
-- semente: HLTV Top 30 de 2026-07-06 (teams_cs.json); time desconhecido
-  entra em default_seed_elo (config);
+- semente neutra para todos os times (default_seed_elo); rankings publicados
+  depois do início do histórico nunca entram no backtest;
 - burn-in (backtest.burnin_days) fora da medição; métrica só conta série em
   que ambos os times têm >= min_team_matches de histórico;
 - H1-CS: Brier/log-loss/calibração (core) do modelo vs baselines coin-flip
   e "ranking-semente congelado"; Diebold-Mariano modelo vs semente.
 
-Ao final materializa data/ratings.json (Elo vivido de todos os times) — o
-serving da Fase 0 passa a usá-lo sem mudar código.
+Somente com ``--write-artifacts`` materializa data/ratings.json (Elo vivido de
+todos os times); por padrão o comando é estritamente read-only.
 
 Saída: data/walkforward_summary.json + relatório no stdout.
 """
 import json
+import argparse
 import statistics as st
 import sys
 from collections import defaultdict
@@ -30,8 +31,8 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "vendor"))
 
 from src import db                                     # noqa: E402
-from src.config import load_config, load_teams         # noqa: E402
-from src.model import K_FACTORS, series_probs, win_probability   # noqa: E402
+from src.config import load_config                     # noqa: E402
+from src.model import K_FACTORS, infer_format, series_probs, win_probability  # noqa: E402
 from predictor_core.measurement.metrics import (       # noqa: E402
     brier, calibration_table, diebold_mariano, log_loss)
 
@@ -53,9 +54,10 @@ def run(cfg, conn):
     seed_default = float(bt["default_seed_elo"])
     min_m = int(bt["min_team_matches"])
 
-    seeds = {t["name"]: float(t["initial_elo"]) for t in load_teams()}
-    elo = dict(seeds)
-    banda = dict(seeds)
+    # O Top 30 versionado é de julho/2026 e seria informação futura para o
+    # começo deste histórico. Ambos os braços começam neutros.
+    elo: dict[str, float] = {}
+    banda: dict[str, float] = {}
     seen = defaultdict(int)
 
     rows = conn.execute(
@@ -70,7 +72,7 @@ def run(cfg, conn):
     for mid, d, ts, a, b, sa, sb, fmt in rows:
         if sa == sb:
             continue                        # série sem vencedor (dado quebrado)
-        fmt = fmt if fmt in K_FACTORS else "bo1"
+        fmt = infer_format(sa, sb, fmt)
         ea, eb = elo.get(a, seed_default), elo.get(b, seed_default)
         p_model = _p_series(ea, eb, fmt)
         p_banda = _p_series(banda.get(a, seed_default),
@@ -98,7 +100,11 @@ def run(cfg, conn):
             "n_total": len(rows)}
 
 
-def main():
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Backtest prequential H1 (read-only por padrão)")
+    parser.add_argument("--write-artifacts", action="store_true",
+                        help="autoriza atualizar ratings.json e walkforward_summary.json")
+    args = parser.parse_args(argv)
     cfg = load_config()
     conn = db.connect(str(ROOT / cfg["database"]), read_only=True)
     r = run(cfg, conn)
@@ -141,15 +147,17 @@ def main():
                           "verdict": "COMPROVADA" if ok else "REFUTADA",
                           "calibracao": calib}
 
-    data = ROOT / "data"
-    (data / "ratings.json").write_text(
-        json.dumps({t: round(v, 1) for t, v in sorted(r["elo"].items())},
-                   ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"\nserving materializado: ratings.json ({len(r['elo'])} times)")
-
-    (data / "walkforward_summary.json").write_text(
-        json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print("artefato: walkforward_summary.json")
+    if args.write_artifacts:
+        data = ROOT / "data"
+        (data / "ratings.json").write_text(
+            json.dumps({t: round(v, 1) for t, v in sorted(r["elo"].items())},
+                       ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(f"\nserving materializado: ratings.json ({len(r['elo'])} times)")
+        (data / "walkforward_summary.json").write_text(
+            json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print("artefato: walkforward_summary.json")
+    else:
+        print("\nread-only: nenhum rating/artefato escrito; use --write-artifacts com autorização")
 
 
 if __name__ == "__main__":

@@ -11,6 +11,7 @@ Cortesia: HLTV_SCRAPER_DELAY (default 2s) entre páginas — é scraping de
 página HTML, não API; seja educado ou o 403 volta.
 """
 import atexit
+from html import unescape
 import os
 import re
 import ssl
@@ -21,6 +22,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from curl_cffi import requests as creq
+
+from ..model import infer_format
 
 BASE = "https://www.hltv.org"
 
@@ -78,7 +81,9 @@ def parse_results_page(html: str) -> list[dict]:
             continue
         map_m = _MAP.search(block)
         mtext = (map_m.group(1).strip().lower() if map_m else "")
-        fmt = mtext if mtext in ("bo3", "bo5") else "bo1"
+        score_a, score_b = int(nums[0]), int(nums[1])
+        advertised = mtext if mtext in ("bo1", "bo3", "bo5") else "bo1"
+        fmt = infer_format(score_a, score_b, advertised)
         ev = _EVENT.search(block)
         ts = int(ts_ms) // 1000
         out.append({
@@ -86,12 +91,12 @@ def parse_results_page(html: str) -> list[dict]:
             "url": href_m.group(1),
             "date": datetime.fromtimestamp(ts, timezone.utc).strftime("%Y-%m-%d"),
             "ts": ts,
-            "team_a": teams[0].strip(),
-            "team_b": teams[1].strip(),
-            "score_a": int(nums[0]),
-            "score_b": int(nums[1]),
+            "team_a": unescape(teams[0].strip()),
+            "team_b": unescape(teams[1].strip()),
+            "score_a": score_a,
+            "score_b": score_b,
             "format": fmt,
-            "event": ev.group(1).strip() if ev else None,
+            "event": unescape(ev.group(1).strip()) if ev else None,
         })
     return out
 
@@ -113,9 +118,9 @@ def parse_match_page(html: str) -> list[dict]:
         if not score_a.strip().isdigit() or not score_b.strip().isdigit():
             continue                            # placar "-" = mapa não jogado
         out.append({
-            "map_name": map_m.group(1).strip(),
-            "team_a": name_a.strip(),
-            "team_b": name_b.strip(),
+            "map_name": unescape(map_m.group(1).strip()),
+            "team_a": unescape(name_a.strip()),
+            "team_b": unescape(name_b.strip()),
             "score_a": int(score_a),
             "score_b": int(score_b),
         })

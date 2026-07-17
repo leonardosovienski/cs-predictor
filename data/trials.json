@@ -60,7 +60,7 @@
       "period": "2024-12..2026-07"
     },
     "sharpe": null,
-    "notes": "N+2: correção simétrica do Platt sobre a probabilidade de série do Elo; intercepto fixo em zero para impedir dependência da ordem team_a/team_b. COMPROVADA = Brier menor que o Elo cru + DM p<0.05. | RESULTADO 2026-07-11: COMPROVADA — Brier 0.4570 -> 0.4523, DM p=0.00000, n=10699.",
+    "notes": "N+2: correção simétrica do Platt sobre a probabilidade de série do Elo; intercepto fixo em zero para impedir dependência da ordem team_a/team_b. COMPROVADA = Brier menor que o Elo cru + DM p<0.05. | RESULTADO 2026-07-11: COMPROVADA — Brier 0.4570 -> 0.4523, DM p=0.00000, n=10699. | RESULTADO protocolo corrigido 2026-07-16: COMPROVADA — Brier 0.4602 -> 0.4538, DM p=0.00000, n=10699.",
     "test_period": [
       "2024-12-22",
       "2026-07-11"

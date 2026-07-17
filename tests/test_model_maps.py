@@ -55,6 +55,11 @@ def test_series_probs_hetero_soma_1():
     assert abs(sum(d.values()) - 1.0) < 1e-9
 
 
+def test_series_probs_hetero_rejeita_serie_inacabada():
+    with pytest.raises(ValueError, match="exatamente 3"):
+        series_probs_hetero([0.7, 0.4], 2)
+
+
 def test_series_probs_hetero_igual_ao_iid_quando_p_constante():
     from src.model import series_probs
     iid = series_probs(0.62, "bo3")
