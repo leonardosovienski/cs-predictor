@@ -35,3 +35,12 @@ def test_resolve_team_por_alias_explicito(monkeypatch):
              {"name": "NIP Impact"}]
     monkeypatch.setattr(config, "load_teams", lambda: times)
     assert config.resolve_team("nip")["name"] == "Ninjas in Pyjamas"
+
+
+def test_resolve_team_navi_alias_para_natus_vincere():
+    # Regressão (auditoria hostil 2026-07-17): "NAVI" — o apelido universal de
+    # Natus Vincere — não resolvia (nem por exato, nem por substring, já que
+    # "navi" não é substring de "natus vincere") e a sugestão de erro apontava
+    # para times júnior errados. teams_cs.json agora popula o alias real.
+    assert resolve_team("NAVI")["name"] == "Natus Vincere"
+    assert resolve_team("navi")["name"] == "Natus Vincere"

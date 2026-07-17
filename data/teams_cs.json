@@ -6,7 +6,7 @@
     {"name": "Vitality", "region": "EU", "hltv_rank": 2, "initial_elo": 1590},
     {"name": "Spirit", "region": "EU", "hltv_rank": 3, "initial_elo": 1579},
     {"name": "FURIA", "region": "SA", "hltv_rank": 4, "initial_elo": 1569},
-    {"name": "Natus Vincere", "region": "EU", "hltv_rank": 5, "initial_elo": 1559},
+    {"name": "Natus Vincere", "region": "EU", "hltv_rank": 5, "initial_elo": 1559, "aliases": ["NAVI"]},
     {"name": "Aurora", "region": "EU", "hltv_rank": 6, "initial_elo": 1548},
     {"name": "BetBoom", "region": "CIS", "hltv_rank": 7, "initial_elo": 1538},
     {"name": "G2", "region": "EU", "hltv_rank": 8, "initial_elo": 1528},
