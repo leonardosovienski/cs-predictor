@@ -44,6 +44,11 @@ def resolve_team(name: str) -> dict:
     for t in teams:
         if t["name"].lower() == low:
             return t
+    # aliases explícitos (campo opcional "aliases" em teams_cs.json) têm
+    # precedência sobre o casamento por substring, que é ambíguo por natureza
+    for t in teams:
+        if any(a.lower() == low for a in t.get("aliases", [])):
+            return t
     hits = [t for t in teams if low in t["name"].lower()]
     if len(hits) == 1:
         return hits[0]

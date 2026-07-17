@@ -1,5 +1,34 @@
 # HANDOFF.md — cs-predictor
 
+> ## 🔧 REVISÃO GERAL (2026-07-17)
+>
+> Correções da revisão de código (suíte 83 verdes, CI 3 barreiras OK):
+> - **Semente do Elo por mapa corrigida**: time desconhecido herdava o rating
+>   do PRIMEIRO time de ratings.json; agora usa a semente neutra
+>   (`backtest.default_seed_elo`, 1400).
+> - **Guard de empate/BO2**: `infer_format` rejeita placar sem vencedor
+>   (1-1/12-12) — `update_ratings` não pune mais o time A como derrotado em
+>   dado sujo. Base auditada: 1 empate 12-12 em 17.138 séries; backtest e
+>   fluxo semanal já pulavam empates, ratings.json de produção NÃO foi
+>   afetado.
+> - **score_probs agora consistente com o Platt**: distribuição reescalada
+>   (forma condicional ao vencedor preservada) para que handicap e mapas
+>   esperados contem a mesma história que a probabilidade servida; crua
+>   preservada em `score_probs_raw`. Helpers únicos em model.py
+>   (`series_win_prob`, `expected_maps`, `cover_probability`,
+>   `calibrate_score_probs`) — duplicação removida de predict/model_maps/
+>   model_maps_shrunk.
+> - **Push em handicap inteiro** exposto (`p_push`; cobrir/não-cobrir/push
+>   somam 1). **`--dry-run`** no CLI (consulta sem poluir o ledger).
+>   **Aliases explícitos** opcionais em teams_cs.json (`"aliases": [...]`),
+>   precedência sobre substring. Guard `_event_has_result` com janela ±1 dia
+>   (série que vira meia-noite UTC).
+>
+> Pendências deliberadas (exigem trial no registro, NÃO rodadas): calibração
+> assimétrica nas pontas (isotônica/bins — Platt simétrico não corrige a
+> cauda 0,07→0,19) e decay de Elo por inatividade no modelo de série
+> (roster changes) — candidatas a tentativa N+2.
+
 > ## 🟢 FASE 1 CONCLUÍDA — H1 COMPROVADA (2026-07-11)
 >
 > **O 403 do HLTV caiu**: curl_cffi + impersonate Chrome responde 200 com

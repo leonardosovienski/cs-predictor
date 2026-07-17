@@ -26,3 +26,12 @@ def test_resolve_team_substring_e_erro():
     assert resolve_team("Mongol")["name"] == "The MongolZ"
     with pytest.raises(ValueError):
         resolve_team("Time Fantasma")
+
+
+def test_resolve_team_por_alias_explicito(monkeypatch):
+    """Campo opcional "aliases" resolve antes do substring ambíguo."""
+    import src.config as config
+    times = [{"name": "Ninjas in Pyjamas", "aliases": ["NIP"]},
+             {"name": "NIP Impact"}]
+    monkeypatch.setattr(config, "load_teams", lambda: times)
+    assert config.resolve_team("nip")["name"] == "Ninjas in Pyjamas"

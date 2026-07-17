@@ -7,7 +7,7 @@ source.  A result is supplied later as an explicit local JSON document.
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import os
@@ -130,10 +130,14 @@ def _event_has_result(root: Path, event: dict[str, Any], a: str, b: str, start: 
     db_path = root / "data" / "cs.db"
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     try:
+        # janela de ±1 dia: série que vira a meia-noite UTC é registrada no
+        # HLTV com a data seguinte e ainda deve bloquear o PRE_EVENT
+        day = timedelta(days=1)
         row = conn.execute(
-            "SELECT 1 FROM matches WHERE date=? AND event=? AND "
+            "SELECT 1 FROM matches WHERE date BETWEEN ? AND ? AND event=? AND "
             "((team_a=? AND team_b=?) OR (team_a=? AND team_b=?)) LIMIT 1",
-            (start.date().isoformat(), event["competition"], a, b, b, a),
+            ((start - day).date().isoformat(), (start + day).date().isoformat(),
+             event["competition"], a, b, b, a),
         ).fetchone()
         return row is not None
     finally:

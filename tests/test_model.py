@@ -92,3 +92,46 @@ def test_time_desconhecido_e_formato_invalido(model):
         model.predict_match("Vitality", "MOUZ", "bo7")
     with pytest.raises(ValueError):
         model.predict_match("MOUZ", "mouz")     # mesmo time
+
+
+def test_infer_format_rejeita_empate():
+    """Empate nunca é placar terminal (1-1 seria BO2, fora do escopo);
+    guard protege update_ratings de punir o time A como derrotado."""
+    from src.model import infer_format
+    for placar in ((1, 1), (12, 12), (0, 0)):
+        with pytest.raises(ValueError):
+            infer_format(*placar)
+
+
+def test_update_ratings_rejeita_empate(model):
+    antes = dict(model.ratings)
+    with pytest.raises(ValueError):
+        model.update_ratings("Vitality", "MOUZ", 1, 1)
+    assert model.ratings == antes                      # nada mutado
+
+
+def test_calibrate_score_probs_consistente():
+    """Distribuição reescalada soma 1 e sua prob de série é a calibrada."""
+    from src.model import calibrate_score_probs, series_probs, series_win_prob
+    raw = series_probs(0.7, "bo3")
+    p_raw = series_win_prob(raw)
+    p_cal = 0.62                                        # Platt achatou
+    dist = calibrate_score_probs(raw, p_raw, p_cal)
+    assert abs(sum(dist.values()) - 1.0) < 1e-9
+    assert abs(series_win_prob(dist) - p_cal) < 1e-9
+    # forma condicional ao vencedor preservada
+    assert abs(dist["2-0"] / dist["2-1"] - raw["2-0"] / raw["2-1"]) < 1e-9
+
+
+def test_handicap_inteiro_tem_push(model):
+    """Linha inteira: 2-1 empata o handicap -1.0 (push, não coberto)."""
+    hc = model.predict_handicap("Vitality", "MOUZ", -1.0, "bo3")
+    r = model.predict_match("Vitality", "MOUZ", "bo3")
+    assert abs(hc["p_push"] - r["score_probs"]["2-1"]) < 1e-6
+    assert abs(hc["p_cover"] + hc["p_not_cover"] + hc["p_push"] - 1.0) < 1e-3
+
+
+def test_handicap_meio_nao_tem_push(model):
+    hc = model.predict_handicap("Vitality", "MOUZ", -1.5, "bo3")
+    assert "p_push" not in hc
+    assert abs(hc["p_cover"] + hc["p_not_cover"] - 1.0) < 1e-6

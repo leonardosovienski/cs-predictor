@@ -79,3 +79,9 @@ def test_series_probs_hetero_favorece_mapa_forte_primeiro():
     p_a2 = sum(v for k, v in d2.items()
                if int(k.split("-")[0]) > int(k.split("-")[1]))
     assert abs(p_a1 - p_a2) < 1e-9
+
+
+def test_seed_de_time_desconhecido_e_neutra(maps):
+    """Time sem Elo de série herda a semente NEUTRA do backtest (1400),
+    nunca o rating do primeiro time do dicionário (bug corrigido)."""
+    assert maps._seed("Time Que Nao Existe XYZ") == 1400.0

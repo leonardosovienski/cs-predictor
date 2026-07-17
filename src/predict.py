@@ -18,7 +18,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from .config import ROOT, load_config           # injeta vendor/ no sys.path
-from .model import FORMAT_HOURS, EloModel
+from .model import FORMAT_HOURS, EloModel, cover_probability
 from .model_maps import MapEloModel, predict_series_with_maps
 
 from predictor_core.data.contracts import PredictionPoint
@@ -32,25 +32,9 @@ def _log_path() -> Path:
                                ROOT / "data" / "predictions.jsonl"))
 
 
-def _cover(score_probs: dict, handicap: float, *, side_a: bool = True) -> float:
-    """P(o lado escolhido cobrir `handicap` de mapas) dado score_probs na
-    perspectiva de A ("wa-wb") — mesma regra de EloModel.predict_handicap,
-    aplicável a qualquer distribuição de placar (série i.i.d. ou por-mapa).
-    side_a=False cobre para B — NÃO é o complemento de side_a=True (são
-    eventos distintos: A cobrir -1.5 é vencer 2-0, B cobrir -1.5 também é
-    vencer 2-0, o resto da distribuição não pertence a nenhum dos dois)."""
-    covered = 0.0
-    for placar, pr in score_probs.items():
-        wa, wb = (int(x) for x in placar.split("-"))
-        w, l = (wa, wb) if side_a else (wb, wa)
-        if w + handicap > l:
-            covered += pr
-    return covered
-
-
 def run(team_a: str, team_b: str, *, fmt: str = "bo3",
         handicap: float | None = None, maps: list[str] | None = None,
-        now: datetime | None = None) -> dict:
+        now: datetime | None = None, dry_run: bool = False) -> dict:
     now = now or datetime.now(timezone.utc)
     model = EloModel()
     if maps:
@@ -64,18 +48,22 @@ def run(team_a: str, team_b: str, *, fmt: str = "bo3",
     fav, dog = ((r["team_a"], r["team_b"]) if fav_first
                 else (r["team_b"], r["team_a"]))
     if fmt != "bo1":
-        p_fav_cover = _cover(r["score_probs"], -1.5, side_a=fav_first)
+        p_fav_cover, _ = cover_probability(r["score_probs"], -1.5,
+                                           side_a=fav_first)
         r["handicap_recomendado"] = (
             {"team": fav, "handicap": -1.5, "p_cover": round(p_fav_cover, 4)}
             if p_fav_cover > 0.5 else
             {"team": dog, "handicap": +1.5,
              "p_cover": round(1.0 - p_fav_cover, 4)})
         if handicap is not None:
-            p = _cover(r["score_probs"], handicap, side_a=True)
+            p, push = cover_probability(r["score_probs"], handicap,
+                                        side_a=True)
             r["handicap_consultado"] = {
                 "team_a": r["team_a"], "team_b": r["team_b"], "format": fmt,
                 "handicap": handicap, "p_cover": round(p, 4),
-                "p_not_cover": round(1.0 - p, 4)}
+                "p_not_cover": round(1.0 - p - push, 4)}
+            if push > 0:    # linha inteira: empate exato devolve a aposta
+                r["handicap_consultado"]["p_push"] = round(push, 4)
     r["total_mapas_projetado"] = r["mapas_esperados"]
 
     point = PredictionPoint(
@@ -87,6 +75,10 @@ def run(team_a: str, team_b: str, *, fmt: str = "bo3",
                   "model": r["model"]})
     r["predicted_at"] = point.predicted_at.isoformat(timespec="seconds")
     r["matures_at"] = point.matures_at.isoformat(timespec="seconds")
+
+    if dry_run:
+        r["dry_run"] = True
+        return r
 
     log = _log_path()
     log.parent.mkdir(parents=True, exist_ok=True)
@@ -118,6 +110,9 @@ def main(argv=None) -> int:
                          "(ex.: Mirage,Inferno,Ancient) — usa Elo POR MAPA "
                          "(H3-CS) em vez do Elo de série")
     ap.add_argument("--json", action="store_true", help="saída estruturada")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="consulta exploratória: não grava no ledger "
+                         "predictions.jsonl nem emite telemetria")
     args = ap.parse_args(argv)
 
     cfg = load_config()
@@ -125,7 +120,7 @@ def main(argv=None) -> int:
     maps = [m.strip() for m in args.maps.split(",")] if args.maps else None
     try:
         r = run(args.team_a, args.team_b, fmt=fmt, handicap=args.handicap,
-                maps=maps)
+                maps=maps, dry_run=args.dry_run)
     except ValueError as e:
         print(str(e), file=sys.stderr)
         return 2

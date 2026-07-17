@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from itertools import combinations
 from math import exp, log
 
-from .model import win_probability
+from .model import series_win_prob, win_probability
 from .model_maps import MAP_K, series_probs_hetero
 
 
@@ -90,7 +90,5 @@ def series_probability(model: ShrunkMapElo, team_a: str, team_b: str, scenarios:
     for scenario in scenarios:
         probs = [model.probability(team_a, team_b, name, base_a=base_a, base_b=base_b, now_ts=now_ts)
                  for name in scenario["maps"]]
-        p_series = sum(value for score, value in series_probs_hetero(probs, 2).items()
-                       if int(score.split("-")[0]) > int(score.split("-")[1]))
-        total += scenario["weight"] * p_series
+        total += scenario["weight"] * series_win_prob(series_probs_hetero(probs, 2))
     return total

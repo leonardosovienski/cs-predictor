@@ -71,3 +71,12 @@ def test_cli_maps_json(capsys):
 def test_maps_menos_que_o_necessario_bo3():
     with pytest.raises(ValueError):
         predict.run("Vitality", "MOUZ", fmt="bo3", maps=["Mirage"])
+
+
+def test_dry_run_nao_grava_ledger(tmp_path, monkeypatch):
+    from src import predict
+    log = tmp_path / "predictions.jsonl"
+    monkeypatch.setenv("PREDICTIONS_LOG_PATH", str(log))
+    r = predict.run("Vitality", "MOUZ", fmt="bo3", dry_run=True)
+    assert r["dry_run"] is True
+    assert not log.exists()
