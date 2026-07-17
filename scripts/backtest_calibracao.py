@@ -59,22 +59,25 @@ def calibrated_stream(probs_m, outs):
 
 
 def main():
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     cfg = load_config()
 
     # 1) pré-registro da tentativa N+1 (ANTES de qualquer veredito)
     reg = TrialRegistry(ROOT / "data" / "trials.json")
-    nome = "h2-cs-elo-platt-prequential"
+    nome = "h2-cs-elo-platt-symmetric-prequential"
     ja = {t["name"] for t in reg.load()}
-    params = {"model": "elo-mapa+combinatoria-serie+platt",
+    params = {"model": "elo-mapa+combinatoria-serie+platt-simetrico",
               "platt": {"min_fit": MIN_FIT, "refit_every": REFIT_EVERY,
-                        "janela": "expanding forward-only"},
+                        "janela": "expanding forward-only", "intercept": 0.0,
+                        "invariante": "cal(1-p)=1-cal(p)"},
               "base": "h1-cs-elo-serie-prequential (mesmo Elo, mesma passada)",
               "period": "2024-12..2026-07"}
     if nome not in ja:
         reg.register(nome, params=params, sharpe=None,
-                     notes="N+1: Platt scaling sobre a prob de série do Elo "
-                           "(motivado pela sobreconfiança nas pontas do "
-                           "relatório da Fase 1). COMPROVADA = Brier menor "
+                     notes="N+2: correção simétrica do Platt sobre a probabilidade "
+                           "de série do Elo; intercepto fixo em zero para impedir "
+                           "dependência da ordem team_a/team_b. COMPROVADA = Brier menor "
                            "que o Elo cru + DM p<0.05.",
                      test_period=["2024-12-22", "2026-07-11"])
         print(f"trial {nome} pré-registrada")
@@ -122,7 +125,7 @@ def main():
               f"(a={full.a:.4f}, b={full.b:.4f}) — a<1 achata as pontas")
     summary_path = ROOT / "data" / "calibracao_summary.json"
     summary_path.write_text(json.dumps({
-        "n": n, "brier_raw": round(br_raw, 4), "brier_cal": round(br_cal, 4),
+        "trial": nome, "n": n, "brier_raw": round(br_raw, 4), "brier_cal": round(br_cal, 4),
         "dm_p": round(dm_p, 6), "verdict": "COMPROVADA" if ok else "REFUTADA",
         "calibracao_pos": tab}, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8")

@@ -37,6 +37,17 @@ def test_apply_monotonico_e_identidade():
     assert ps == sorted(ps)           # monotônico
 
 
+def test_apply_e_serving_sao_simetricos_ao_inverter_times(tmp_path):
+    cal = PlattCalibrator(a=0.68, b=0.1)  # b legado deve ser ignorado
+    for p in (0.1, 0.3, 0.5, 0.7, 0.9):
+        assert cal.apply(1 - p) == pytest.approx(1 - cal.apply(p), abs=1e-12)
+    model = EloModel(ratings_file=tmp_path / "ratings.json")
+    forward = model.predict_match("Vitality", "MOUZ", "bo3")
+    reverse = model.predict_match("MOUZ", "Vitality", "bo3")
+    assert forward["prob_team_a"] == pytest.approx(reverse["prob_team_b"], abs=1e-4)
+    assert forward["prob_team_b"] == pytest.approx(reverse["prob_team_a"], abs=1e-4)
+
+
 def test_save_load_roundtrip(tmp_path):
     cal = PlattCalibrator(a=0.6823, b=0.0958)
     cal.save(tmp_path / "p.json", meta={"trial": "teste"})

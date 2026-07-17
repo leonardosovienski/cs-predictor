@@ -2,12 +2,13 @@
 
 Motivação (relatório da Fase 1): o Elo /400 é SOBRECONFIANTE nas pontas no
 CS (previsto 0,93 → real 0,88; previsto 0,07 → real 0,19). O Platt reescala
-sem tocar no rating subjacente:
+sem tocar no rating subjacente e preserva a simetria A/B:
 
-    q = sigmoid(a·logit(p) + b)
+    q = sigmoid(a·logit(p))
 
-a<1 achata (corrige sobreconfiança), a>1 afia, b desloca. Ajuste por
-Newton-Raphson na log-verossimilhança (2 parâmetros, fechado em ~25
+a<1 achata (corrige sobreconfiança), a>1 afia. O intercepto fica em zero,
+garantindo `cal(1-p) = 1-cal(p)`. Ajuste por Newton-Raphson na
+log-verossimilhança (1 parâmetro, fechado em ~25
 iterações) — stdlib puro, sem sklearn.
 
 Uso prequential (backtest_calibracao.py): o calibrador só enxerga pares
@@ -36,11 +37,14 @@ def _sigmoid(z: float) -> float:
 
 
 class PlattCalibrator:
-    """q = sigmoid(a·logit(p) + b). Identidade até o fit (a=1, b=0)."""
+    """q = sigmoid(a·logit(p)), simétrico e identidade até o fit."""
 
     def __init__(self, a: float = 1.0, b: float = 0.0):
         self.a = float(a)
-        self.b = float(b)
+        # ``b`` continua aceito para carregar artefatos legados, mas é
+        # deliberadamente ignorado: intercepto não-zero quebra a invariância
+        # quando team_a/team_b são trocados.
+        self.b = 0.0
 
     def fit(self, probs: list[float], outcomes: list[int],
             iters: int = 25) -> "PlattCalibrator":
@@ -48,32 +52,25 @@ class PlattCalibrator:
         if len(probs) != len(outcomes) or len(probs) < 10:
             raise ValueError("amostra insuficiente/inconsistente para o Platt")
         zs = [_logit(p) for p in probs]
-        a, b = self.a, self.b
+        a = self.a
         for _ in range(iters):
-            g_a = g_b = h_aa = h_ab = h_bb = 0.0
+            gradient = hessian = 0.0
             for z, y in zip(zs, outcomes):
-                q = _sigmoid(a * z + b)
-                d = q - y
+                q = _sigmoid(a * z)
                 w = max(q * (1.0 - q), 1e-9)
-                g_a += d * z
-                g_b += d
-                h_aa += w * z * z
-                h_ab += w * z
-                h_bb += w
-            det = h_aa * h_bb - h_ab * h_ab
-            if abs(det) < 1e-12:
+                gradient += (q - y) * z
+                hessian += w * z * z
+            if abs(hessian) < 1e-12:
                 break
-            da = (g_a * h_bb - g_b * h_ab) / det
-            db = (g_b * h_aa - g_a * h_ab) / det
+            da = gradient / hessian
             a -= da
-            b -= db
-            if abs(da) < 1e-9 and abs(db) < 1e-9:
+            if abs(da) < 1e-9:
                 break
-        self.a, self.b = a, b
+        self.a, self.b = a, 0.0
         return self
 
     def apply(self, p: float) -> float:
-        return _sigmoid(self.a * _logit(p) + self.b)
+        return _sigmoid(self.a * _logit(p))
 
     # ---- persistência (serving) ----
     def save(self, path: Path | str, meta: dict | None = None) -> None:

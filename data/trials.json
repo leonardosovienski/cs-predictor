@@ -43,5 +43,27 @@
       "2024-12-22",
       "2026-07-11"
     ]
+  },
+  {
+    "name": "h2-cs-elo-platt-symmetric-prequential",
+    "registered_at": "2026-07-17T01:44:19Z",
+    "params": {
+      "model": "elo-mapa+combinatoria-serie+platt-simetrico",
+      "platt": {
+        "min_fit": 300,
+        "refit_every": 200,
+        "janela": "expanding forward-only",
+        "intercept": 0.0,
+        "invariante": "cal(1-p)=1-cal(p)"
+      },
+      "base": "h1-cs-elo-serie-prequential (mesmo Elo, mesma passada)",
+      "period": "2024-12..2026-07"
+    },
+    "sharpe": null,
+    "notes": "N+2: correção simétrica do Platt sobre a probabilidade de série do Elo; intercepto fixo em zero para impedir dependência da ordem team_a/team_b. COMPROVADA = Brier menor que o Elo cru + DM p<0.05. | RESULTADO 2026-07-11: COMPROVADA — Brier 0.4570 -> 0.4523, DM p=0.00000, n=10699.",
+    "test_period": [
+      "2024-12-22",
+      "2026-07-11"
+    ]
   }
 ]

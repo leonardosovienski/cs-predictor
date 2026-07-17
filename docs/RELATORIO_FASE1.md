@@ -54,6 +54,17 @@ desconta); nenhuma foi rodada.
 `data/ratings.json` — Elo vivido de **1.227 times**; o `predict` da Fase 0
 passa a usá-lo automaticamente (ratings_file sobrepõe a semente).
 
+### Correção de simetria do Platt (2026-07-17 UTC)
+
+O Platt original permitia intercepto não-zero (`b=0,095752`), fazendo a
+probabilidade depender da ordem team_a/team_b. A tentativa
+`h2-cs-elo-platt-symmetric-prequential` fixou `b=0` e tornou obrigatório
+`cal(1-p)=1-cal(p)`.
+
+No backtest expanding forward-only com 10.699 séries, o calibrador simétrico
+permaneceu **COMPROVADO**: Brier `0,4570 → 0,4523`, Diebold-Mariano
+`p<0,00001`. O serving foi rematerializado com `a=0,702036` e `b=0`.
+
 ## Fase 1b (futura)
 
 Sem odds históricas gratuitas de CS. Caminho para mercado: coleta de odds
