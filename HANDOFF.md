@@ -1,5 +1,18 @@
 # HANDOFF.md — cs-predictor
 
+> ## ADENDO ECOSSISTEMA (2026-07-18)
+>
+> Vendor de `predictor_core` byte-idêntico ao canônico, sincronizado em
+> `7627c03`. Suíte: 100% verde. Bug real corrigido numa rodada anterior:
+> alias "NAVI" ausente para Natus Vincere (`a478829`). Auditoria hostil
+> adicional 2026-07-18 (`resolve_team` contra 13 apelidos/abreviações reais
+> e colisões de substring adversariais): nenhum bug novo, zero
+> falso-positivo. Lifecycle `PRE_EVENT`/`MATURED` deste projeto tem vínculo
+> criptográfico (hash) entre snapshots — mais rigoroso que F1/LoL, por isso
+> não foi promovido a contrato comum do core (`PENDENCIAS_ABERTAS.md`
+> INC-1). Sem incidente de segurança próprio. Documento canônico do
+> ecossistema: `../ECOSYSTEM_HANDOFF.md`.
+>
 > ## 🔧 REVISÃO GERAL (2026-07-17)
 >
 > Correções da revisão de código (suíte 83 verdes, CI 3 barreiras OK):
