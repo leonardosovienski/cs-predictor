@@ -61,8 +61,8 @@ src/
   data/hltv_provider.py     # stub HLTV (403 a cliente simples; Fase 1 decide a via)
 data/teams_cs.json          # HLTV Top 30 (2026-07-06) com Elo semente
 scripts/ci_check.py         # 3 barreiras: pytest, .ps1 ASCII, parse+smoke
-tests/                      # 24 testes (modelo, serving, config, core, higiene)
-vendor/predictor_core/      # v1.1.0 via sync_core (NÃO editar à mão)
+tests/                      # 85 testes (modelo, serving, config, core, higiene)
+vendor/predictor_core/      # v1.3.1 via sync_core (NÃO editar à mão)
 ```
 
 ## Roadmap
@@ -70,6 +70,6 @@ vendor/predictor_core/      # v1.1.0 via sync_core (NÃO editar à mão)
 | Fase | Escopo | Status |
 |---|---|---|
 | 0 | Esqueleto: estrutura, vendor, Elo base, serving, CI | ✅ |
-| 1 | Dados históricos Tier 1 (HLTV) + backtest walk-forward | ⏳ prompt separado |
-| 2 | Governança: harness + TrialRegistry + GO/NO-GO (padrão da plataforma) | ⏳ |
-| 3 | Operação: odds, bet_log, settle | ⏳ (só após GO) |
+| 1 | Dados históricos Tier 1 (HLTV) + backtest walk-forward | ✅ H1 comprovada |
+| 2 | Governança: harness + TrialRegistry + calibração Platt H2 | ✅ H2 comprovada (Platt calibrado, `data/calibration_platt.json`) |
+| 3 | Operação: odds, bet_log, settle | ⏳ (só após GO financeiro — não construído) |
