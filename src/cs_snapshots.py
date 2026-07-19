@@ -99,6 +99,12 @@ def _resolve(model: EloModel, requested: str) -> dict[str, Any]:
         return {"requested": requested, "canonical": canonical,
                 "team_id": canonical, "confidence": "UNIQUE_ALIAS"}
     except ValueError as exc:
+        # caixa exata primeiro: organizações distintas podem diferir só pela
+        # caixa (LEO/Leo); o casamento case-insensitive segue exigindo unicidade
+        stripped = requested.strip()
+        if stripped in model.ratings:
+            return {"requested": requested, "canonical": stripped,
+                    "team_id": stripped, "confidence": "RATINGS_EXACT"}
         matches = [name for name in model.ratings if name.lower() == low]
         if len(matches) == 1:
             return {"requested": requested, "canonical": matches[0],

@@ -1,5 +1,25 @@
 # HANDOFF.md — cs-predictor
 
+> ## 🔒 AUDITORIA DE IDENTIDADE (2026-07-19)
+>
+> **Bug real corrigido**: `ratings.json` contém 3 pares de organizações
+> DISTINTAS cujos nomes diferem só pela caixa (`LEO`/`Leo` — 4 vs 185
+> partidas na base —, `CHAOS`/`Chaos`, `WINNERS`/`Winners`).
+> `EloModel._elo` resolvia case-insensitive devolvendo o PRIMEIRO hit do
+> dict: `_elo("Leo")` retornava silenciosamente a entidade `LEO`. Agora:
+> caixa exata resolve; casamento case-insensitive só quando único;
+> ambíguo rejeita com a lista das entidades. `cs_snapshots._resolve`
+> (que já rejeitava o ambíguo) ganhou a mesma preferência por caixa
+> exata (`RATINGS_EXACT`). Ratings persistidos NÃO foram contaminados:
+> o replay (`backtest_walkforward.py`) usa nomes exatos do banco, sem
+> passar por `_elo` — o bug era só de lookup no serving/snapshot.
+> +6 testes hostis (`tests/test_identity_hostile.py`), suíte 91 verde,
+> CI 3/3. Verificado também nesta rodada: 0 `match_id` duplicado em
+> 17.138 séries (os 7 "duplicados exatos" por data/evento/placar são
+> rematches reais com match_id HLTV distintos); 4 snapshots reais de
+> 2026 verificam (1 `VALID_FORWARD` com vínculo hash PRE_EVENT→MATURED,
+> 3 `VERIFIED` aguardando resultado).
+
 > ## ADENDO ECOSSISTEMA (2026-07-18)
 >
 > Vendor de `predictor_core` byte-idêntico ao canônico, sincronizado em

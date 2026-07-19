@@ -61,7 +61,7 @@ src/
   data/hltv_provider.py     # stub HLTV (403 a cliente simples; Fase 1 decide a via)
 data/teams_cs.json          # HLTV Top 30 (2026-07-06) com Elo semente
 scripts/ci_check.py         # 3 barreiras: pytest, .ps1 ASCII, parse+smoke
-tests/                      # 85 testes (modelo, serving, config, core, higiene)
+tests/                      # 91 testes (modelo, serving, config, core, higiene, identidade hostil)
 vendor/predictor_core/      # v1.3.1 via sync_core (NÃO editar à mão)
 ```
 

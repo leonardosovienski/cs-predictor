@@ -156,11 +156,22 @@ class EloModel:
         except ValueError:
             pass
         # fora do Top 30 semeado, mas com Elo vivido em ratings.json
-        # (times que só entram na base pelo histórico real de partidas)
-        low = name.strip().lower()
-        for official, elo in self.ratings.items():
-            if official.lower() == low:
-                return official, elo
+        # (times que só entram na base pelo histórico real de partidas).
+        # Caixa exata primeiro: o HLTV tem organizações DISTINTAS cujos nomes
+        # diferem só pela caixa (LEO/Leo, CHAOS/Chaos, WINNERS/Winners) —
+        # casamento case-insensitive aqui só é aceito quando é único.
+        stripped = name.strip()
+        if stripped in self.ratings:
+            return stripped, self.ratings[stripped]
+        low = stripped.lower()
+        exact_ci = [official for official in self.ratings
+                    if official.lower() == low]
+        if len(exact_ci) == 1:
+            return exact_ci[0], self.ratings[exact_ci[0]]
+        if len(exact_ci) > 1:
+            raise ValueError(
+                f"nome ambíguo: {name!r} corresponde a entidades distintas "
+                f"{exact_ci} — use a caixa exata")
         hits = [official for official in self.ratings
                 if low in official.lower()]
         if len(hits) == 1:
