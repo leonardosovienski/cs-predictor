@@ -65,6 +65,10 @@ def evaluate(conn: sqlite3.Connection, events: set[str]) -> dict[str, Any]:
         "FROM matches ORDER BY date, ts, match_id").fetchall()
     for mid, _date, ts, a, b, sa, sb, _stored_format, event in rows:
         now_ts = int(ts or 0)
+        # Dado sem vencedor não produz previsão avaliável nem atualização.
+        # O guard precisa vir antes de infer_format, que rejeita empates.
+        if sa == sb:
+            continue
         # The historical results parser can label a BO3 as ``bo1`` when the
         # result-list HTML exposes a map name instead of the series format.
         # Infer format exactly as EloModel.update_ratings does, from a closed
@@ -79,7 +83,7 @@ def evaluate(conn: sqlite3.Connection, events: set[str]) -> dict[str, Any]:
         maps = maps_by_match.get(mid, [])
         # A valid BO3 has its two or three played maps stored in result order.
         valid_bo3_maps = fmt == "bo3" and len(maps) in {2, 3} and total_maps in {2, 3}
-        if event in events and valid_bo3_maps and sa != sb:
+        if event in events and valid_bo3_maps:
             probabilities = []
             for name, _map_a, _map_b, _map_sa, _map_sb in maps:
                 ma = map_elo.get((a, name), ea)
@@ -96,9 +100,8 @@ def evaluate(conn: sqlite3.Connection, events: set[str]) -> dict[str, Any]:
                                          base_a=ea, base_b=eb, now_ts=now_ts)})
 
         # Prediction completes before either rating receives this result.
-        if sa != sb:
-            delta = K_FACTORS[fmt] * ((1.0 if sa > sb else 0.0) - p_map)
-            series_elo[a], series_elo[b] = ea + delta, eb - delta
+        delta = K_FACTORS[fmt] * ((1.0 if sa > sb else 0.0) - p_map)
+        series_elo[a], series_elo[b] = ea + delta, eb - delta
         for name, map_a, map_b, map_sa, map_sb in maps:
             if map_sa == map_sb:
                 continue
