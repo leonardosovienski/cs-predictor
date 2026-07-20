@@ -2,7 +2,8 @@
 import pytest
 
 from src import db
-from src.data.hltv_provider import parse_match_page, parse_results_page
+from src.data.hltv_provider import (DataUnavailableError, HltvProvider,
+                                    parse_match_page, parse_results_page)
 
 # bloco mínimo com a estrutura real observada na sondagem 2026-07-12
 # (página de detalhe de partida, /matches/<id>/...)
@@ -99,6 +100,33 @@ def test_parse_bloco_quebrado_nao_derruba():
     quebrado = _HTML.replace('<td class="result-score"><span class="score-won">2</span> - <span class="score-lost">0</span></td>', "")
     rows = parse_results_page(quebrado)
     assert len(rows) == 2                     # só o bloco quebrado fica fora
+
+
+class _Response:
+    status_code = 200
+
+    def __init__(self, text):
+        self.text = text
+
+    def raise_for_status(self):
+        return None
+
+
+def test_fetch_results_page_rejeita_desafio_200_sem_resultados(monkeypatch):
+    provider = HltvProvider(delay=0)
+    monkeypatch.setattr(provider.session, "get",
+                        lambda *args, **kwargs: _Response("<html>challenge</html>"))
+    with pytest.raises(DataUnavailableError, match="anti-bot"):
+        provider.fetch_results_page(100)
+
+
+def test_fetch_results_page_rejeita_quebra_total_do_parser(monkeypatch):
+    provider = HltvProvider(delay=0)
+    html = '<div class="result-con" data-zonedgrouping-entry-unix="1">schema novo</div>'
+    monkeypatch.setattr(provider.session, "get",
+                        lambda *args, **kwargs: _Response(html))
+    with pytest.raises(DataUnavailableError, match="parser"):
+        provider.fetch_results_page(200)
 
 
 def test_parse_resultado_empatado_sem_vencedor_e_ignorado():

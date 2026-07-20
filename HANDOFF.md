@@ -1,5 +1,12 @@
 # HANDOFF.md — cs-predictor
 
+> ## ESTADO REVALIDADO (2026-07-20)
+>
+> Suíte completa: **110 verdes**; CI local: **3/3**. Vendor do
+> `predictor_core` sincronizado em `feeac2a` com a versão
+> `1.3.2-ga-20260720`. O HEAD local `28a7d33` está um commit à frente de
+> `origin/main` (`feeac2a`); nenhum push foi feito nesta rodada.
+
 > ## 🔒 AUDITORIA DE IDENTIDADE (2026-07-19)
 >
 > **Bug real corrigido**: `ratings.json` contém 3 pares de organizações

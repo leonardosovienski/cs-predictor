@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -12,6 +13,20 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.data.polymarket_provider import PolymarketProvider  # noqa: E402
+from src.predict import run as predict_match                 # noqa: E402
+
+
+def enrich_with_frozen_model(quote: dict, team_a: str, team_b: str) -> dict:
+    prediction = predict_match(team_a, team_b,
+                               fmt=quote.get("format") or "bo3", dry_run=True)
+    ratings = ROOT / "data" / "ratings.json"
+    if not ratings.exists():
+        raise RuntimeError("data/ratings.json ausente; não há modelo vivido para congelar")
+    return {**quote,
+            "model_probability_a": prediction["prob_team_a"],
+            "model_probability_b": prediction["prob_team_b"],
+            "model_name": prediction["model"],
+            "ratings_sha256": hashlib.sha256(ratings.read_bytes()).hexdigest()}
 
 
 def append_once(path: Path, quote: dict) -> bool:
@@ -45,6 +60,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     quote = PolymarketProvider().fetch_match(args.team_a, args.team_b,
                                              event_id=args.event_id)
+    quote = enrich_with_frozen_model(quote, args.team_a, args.team_b)
     inserted = append_once(args.output, quote)
     print(json.dumps({"inserted": inserted, "quote": quote},
                      ensure_ascii=False, indent=2, sort_keys=True))

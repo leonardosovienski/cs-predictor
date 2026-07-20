@@ -23,7 +23,9 @@ from pathlib import Path
 
 from curl_cffi import requests as creq
 
+from .. import config  # noqa: F401  (injeta vendor/ no sys.path)
 from ..model import infer_format
+from predictor_core.data.contracts import DataUnavailableError
 
 BASE = "https://www.hltv.org"
 
@@ -161,7 +163,15 @@ class HltvProvider:
                              verify=self.verify)
         time.sleep(self.delay)
         r.raise_for_status()
-        return parse_results_page(r.text)
+        rows = parse_results_page(r.text)
+        if not rows:
+            if "result-con" in r.text:
+                reason = "HTML de resultados não corresponde mais ao parser"
+            else:
+                reason = "resposta sem blocos de resultado (bloqueio ou desafio anti-bot)"
+            raise DataUnavailableError(
+                f"HLTV offset={offset}: {reason}; coleta interrompida sem truncar silenciosamente")
+        return rows
 
     def fetch_match_maps(self, match_id: int, url: str | None = None) -> list[dict]:
         """Mapas jogados de UMA partida (página de detalhe). `url` é o path
