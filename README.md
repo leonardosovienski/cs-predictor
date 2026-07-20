@@ -87,6 +87,11 @@ python scripts/collect_polymarket_upcoming.py
 O coletor aceita apenas um ID Gamma explícito, exige moneyline com identidade
 exata e instante PRE_EVENT, consulta somente Gamma/CLOB públicos e grava em
 `data/market_shadow.jsonl`. Não existe caminho de ordem ou trading no projeto.
+
+Para acumulação prospectiva automática, instale o coletor read-only a cada
+30 minutos com `powershell -File scripts/install_market_shadow_task.ps1
+-RunNow`. A tarefa criada é `cs-market-shadow`, usa `MultipleInstances
+IgnoreNew` e nunca possui caminho de ordem ou trading.
 O coletor `upcoming` descobre e captura automaticamente moneylines abertas nas
 próximas 48 horas; é o entrypoint usado pela automação recorrente.
 
