@@ -10,10 +10,13 @@
 > caixa exata resolve; casamento case-insensitive só quando único;
 > ambíguo rejeita com a lista das entidades. `cs_snapshots._resolve`
 > (que já rejeitava o ambíguo) ganhou a mesma preferência por caixa
-> exata (`RATINGS_EXACT`). Ratings persistidos NÃO foram contaminados:
-> o replay (`backtest_walkforward.py`) usa nomes exatos do banco, sem
-> passar por `_elo` — o bug era só de lookup no serving/snapshot.
-> +6 testes hostis (`tests/test_identity_hostile.py`), suíte 91 verde,
+> exata (`RATINGS_EXACT`). O pipeline que materializa os ratings não estava
+> exposto: o replay (`backtest_walkforward.py`) usa nomes exatos do banco,
+> sem passar por `_elo`; o bug estava no lookup de serving/snapshot.
+> A continuação de 2026-07-20 aplicou o mesmo contrato ao Top 30: Unicode
+> NFC + `casefold`, caixa exata primeiro e rejeição de colisões de nomes ou
+> aliases. Testes hostis em `tests/test_identity_hostile.py` e
+> `tests/test_config.py`; suíte 99 verde,
 > CI 3/3. Verificado também nesta rodada: 0 `match_id` duplicado em
 > 17.138 séries (os 7 "duplicados exatos" por data/evento/placar são
 > rematches reais com match_id HLTV distintos); 4 snapshots reais de
@@ -22,8 +25,8 @@
 
 > ## ADENDO ECOSSISTEMA (2026-07-18)
 >
-> Vendor de `predictor_core` byte-idêntico ao canônico, sincronizado em
-> `7627c03`. Suíte: 100% verde. Bug real corrigido numa rodada anterior:
+> Vendor de `predictor_core` íntegro contra seu `CORE_MANIFEST.json`,
+> sincronizado em `7627c03`. Suíte: 100% verde. Bug real corrigido numa rodada anterior:
 > alias "NAVI" ausente para Natus Vincere (`a478829`). Auditoria hostil
 > adicional 2026-07-18 (`resolve_team` contra 13 apelidos/abreviações reais
 > e colisões de substring adversariais): nenhum bug novo, zero

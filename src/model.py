@@ -17,7 +17,7 @@ import json
 from pathlib import Path
 
 from .calibration import PlattCalibrator
-from .config import ROOT, load_config, load_teams, resolve_team
+from .config import ROOT, identity_key, load_config, load_teams, resolve_team
 
 K_FACTORS = {"bo1": 32, "bo3": 40, "bo5": 48}
 
@@ -163,9 +163,9 @@ class EloModel:
         stripped = name.strip()
         if stripped in self.ratings:
             return stripped, self.ratings[stripped]
-        low = stripped.lower()
+        low = identity_key(stripped)
         exact_ci = [official for official in self.ratings
-                    if official.lower() == low]
+                    if identity_key(official) == low]
         if len(exact_ci) == 1:
             return exact_ci[0], self.ratings[exact_ci[0]]
         if len(exact_ci) > 1:
@@ -173,7 +173,7 @@ class EloModel:
                 f"nome ambíguo: {name!r} corresponde a entidades distintas "
                 f"{exact_ci} — use a caixa exata")
         hits = [official for official in self.ratings
-                if low in official.lower()]
+                if low in identity_key(official)]
         if len(hits) == 1:
             return hits[0], self.ratings[hits[0]]
         raise ValueError(f"time desconhecido: {name!r}"

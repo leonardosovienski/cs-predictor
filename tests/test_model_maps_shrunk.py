@@ -24,3 +24,11 @@ def test_historical_veto_proxy_uses_only_observed_maps_and_normalizes():
 def test_series_probability_is_neutral_without_history():
     model = ShrunkMapElo()
     assert series_probability(model, "A", "B", [], base_a=1500, base_b=1500, now_ts=1) == 0.5
+
+
+def test_cold_start_inherits_base_and_tie_does_not_create_state():
+    model = ShrunkMapElo()
+    assert model.rating("new", "Nuke", base_elo=1475, now_ts=10) == 1475
+    model.update("A", "B", "Nuke", 12, 12,
+                 base_a=1500, base_b=1500, now_ts=10)
+    assert model._ratings == {}

@@ -44,3 +44,26 @@ def test_resolve_team_navi_alias_para_natus_vincere():
     # para times júnior errados. teams_cs.json agora popula o alias real.
     assert resolve_team("NAVI")["name"] == "Natus Vincere"
     assert resolve_team("navi")["name"] == "Natus Vincere"
+
+
+def test_resolve_team_rejeita_colisoes_de_nome_e_alias(monkeypatch):
+    import src.config as config
+    times = [
+        {"name": "LEO", "aliases": ["lion"]},
+        {"name": "Leo", "aliases": ["LION"]},
+    ]
+    monkeypatch.setattr(config, "load_teams", lambda: times)
+    assert config.resolve_team("LEO")["name"] == "LEO"
+    assert config.resolve_team("Leo")["name"] == "Leo"
+    with pytest.raises(ValueError, match="nome ambíguo"):
+        config.resolve_team("leo")
+    with pytest.raises(ValueError, match="alias ambíguo"):
+        config.resolve_team("lion")
+
+
+def test_resolve_team_normaliza_unicode_nfc_e_rejeita_vazio(monkeypatch):
+    import src.config as config
+    monkeypatch.setattr(config, "load_teams", lambda: [{"name": "Café"}])
+    assert config.resolve_team("Cafe\u0301")["name"] == "Café"
+    with pytest.raises(ValueError, match="nome vazio"):
+        config.resolve_team("   ")

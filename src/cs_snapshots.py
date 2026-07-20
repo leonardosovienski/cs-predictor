@@ -18,7 +18,7 @@ import sys
 from typing import Any
 import uuid
 
-from .config import ROOT, load_config, load_teams, resolve_team
+from .config import ROOT, identity_key, load_config, load_teams, resolve_team
 from .model import EloModel
 
 SCHEMA_VERSION = "1.0"
@@ -87,9 +87,10 @@ def _core_identity(root: Path) -> dict[str, str]:
 
 def _resolve(model: EloModel, requested: str) -> dict[str, Any]:
     """Resolve aliases explicitly; ambiguous input never reaches the model."""
-    low = requested.strip().lower()
+    stripped = requested.strip()
+    low = identity_key(stripped)
     teams = load_teams()
-    exact = [row for row in teams if row["name"].lower() == low]
+    exact = [row for row in teams if row["name"] == stripped]
     if exact:
         canonical = exact[0]["name"]
         return {"requested": requested, "canonical": canonical,
@@ -101,11 +102,11 @@ def _resolve(model: EloModel, requested: str) -> dict[str, Any]:
     except ValueError as exc:
         # caixa exata primeiro: organizações distintas podem diferir só pela
         # caixa (LEO/Leo); o casamento case-insensitive segue exigindo unicidade
-        stripped = requested.strip()
         if stripped in model.ratings:
             return {"requested": requested, "canonical": stripped,
                     "team_id": stripped, "confidence": "RATINGS_EXACT"}
-        matches = [name for name in model.ratings if name.lower() == low]
+        matches = [name for name in model.ratings
+                   if identity_key(name) == low]
         if len(matches) == 1:
             return {"requested": requested, "canonical": matches[0],
                     "team_id": matches[0], "confidence": "RATINGS_EXACT"}

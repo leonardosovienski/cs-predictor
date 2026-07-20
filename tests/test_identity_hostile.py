@@ -60,3 +60,17 @@ def test_snapshot_resolve_prefers_exact_case(tmp_path):
     assert _resolve(model, "Leo")["confidence"] == "RATINGS_EXACT"
     with pytest.raises(SnapshotError, match="ambíguo"):
         _resolve(model, "leo")
+
+
+@pytest.mark.parametrize("left,right", [
+    ("LEO", "Leo"), ("CHAOS", "Chaos"), ("WINNERS", "Winners"),
+])
+def test_all_production_case_collisions_are_distinct(tmp_path, left, right):
+    # Fixture versionada: a suíte não depende do ratings.json gitignored.
+    path = tmp_path / "ratings.json"
+    path.write_text(json.dumps({left: 1400, right: 1500}), encoding="utf-8")
+    model = EloModel(ratings_file=path)
+    assert model._elo(left)[0] == left
+    assert model._elo(right)[0] == right
+    with pytest.raises(ValueError, match="ambíguo"):
+        model._elo(left.swapcase())

@@ -199,3 +199,26 @@ def test_atomic_create_never_overwrites_under_race(tmp_path: Path):
         outcomes = list(pool.map(create, payloads))
     assert outcomes.count(True) == 1
     assert json.loads(target.read_text(encoding="utf-8")) in payloads
+
+
+def test_truncated_snapshot_is_rejected(tmp_path: Path):
+    path = tmp_path / "truncated.json"
+    path.write_text('{"status":"PRE_EVENT"', encoding="utf-8")
+    with pytest.raises(snapshots.SnapshotError, match="ilegível"):
+        snapshots.load_and_verify_snapshot(path)
+
+
+def test_matured_predecessor_cannot_escape_snapshot_root(tmp_path: Path):
+    _pre(tmp_path)
+    matured = snapshots.mature_snapshot(
+        event_id="test-cs-2030-bo3", year=2030,
+        result_file=_result(tmp_path / "result.json"),
+        snapshots_root=tmp_path / "snapshots",
+        now=datetime(2030, 1, 2, 17, tzinfo=timezone.utc))
+    payload = json.loads(matured.read_text(encoding="utf-8"))
+    payload["pre_event_path"] = "../../outside.json"
+    payload["payload_hash"] = snapshots._payload_hash(payload)
+    matured.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(snapshots.SnapshotError, match="escapa"):
+        snapshots.load_and_verify_matured_snapshot(
+            matured, snapshots_root=tmp_path / "snapshots")
