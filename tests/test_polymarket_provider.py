@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from src.data.polymarket_provider import DataUnavailableError, PolymarketProvider
+from src.data.polymarket_provider import DataUnavailableError, PolymarketProvider, _timestamp
 
 
 EVENT = {"id": "1", "startTime": "2030-01-02T12:00:00Z", "markets": [{
@@ -38,3 +38,16 @@ def test_rejects_post_event_and_identity_mismatch():
     with pytest.raises(DataUnavailableError, match="encontrados 0"):
         provider.fetch_match("Vitality", "Spirit", event_id="1",
                              observed_at=datetime(2030, 1, 1, 11, tzinfo=timezone.utc))
+
+
+def test_clob_epoch_string_is_accepted():
+    assert _timestamp("1893492000000") == datetime(2030, 1, 1, 10, tzinfo=timezone.utc)
+
+
+def test_lists_only_unique_open_upcoming_moneylines():
+    event = {**EVENT, "closed": False}
+    provider = PolymarketProvider(get_json=lambda _url: {"events": [event, event]})
+    rows = provider.list_upcoming_matches(
+        now=datetime(2030, 1, 1, 11, tzinfo=timezone.utc), horizon_hours=48)
+    assert rows == [{"event_id": "1", "team_a": "Vitality", "team_b": "MOUZ",
+                     "scheduled_at": "2030-01-02T12:00:00+00:00"}]

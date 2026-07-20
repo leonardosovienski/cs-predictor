@@ -81,11 +81,14 @@ produção.
 
 ```powershell
 python scripts/collect_polymarket_shadow.py Vitality MOUZ --event-id ID_GAMMA
+python scripts/collect_polymarket_upcoming.py
 ```
 
 O coletor aceita apenas um ID Gamma explícito, exige moneyline com identidade
 exata e instante PRE_EVENT, consulta somente Gamma/CLOB públicos e grava em
 `data/market_shadow.jsonl`. Não existe caminho de ordem ou trading no projeto.
+O coletor `upcoming` descobre e captura automaticamente moneylines abertas nas
+próximas 48 horas; é o entrypoint usado pela automação recorrente.
 
 ## Roadmap
 

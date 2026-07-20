@@ -65,5 +65,51 @@
       "2024-12-22",
       "2026-07-11"
     ]
+  },
+  {
+    "name": "h3-cs-asymmetric-calibration-forward",
+    "registered_at": "2026-07-20T06:35:44Z",
+    "params": {
+      "candidate": "isotonic-or-monotonic-bins",
+      "baseline": "canonical symmetric Platt H2",
+      "data_policy": "predictions generated after registration only",
+      "minimum_eligible_predictions": 1000,
+      "minimum_calendar_days": 90,
+      "primary_metric": "winner Brier",
+      "decision": "Brier lower and paired DM p<0.05; otherwise REFUTADA/INCONCLUSIVA",
+      "serving_change_before_verdict": false
+    },
+    "sharpe": null,
+    "notes": "PRÉ-REGISTRADA, NÃO EXECUTADA. Testa correção assimétrica das caudas sem reutilizar a janela histórica já inspecionada.",
+    "test_period": [
+      "2026-07-21",
+      "forward-open"
+    ]
+  },
+  {
+    "name": "h4-cs-inactivity-decay-forward",
+    "registered_at": "2026-07-20T06:35:44Z",
+    "params": {
+      "candidate_half_life_days": [
+        30,
+        60,
+        90,
+        120
+      ],
+      "baseline": "canonical series Elo + symmetric Platt H2",
+      "data_policy": "predictions generated after registration only",
+      "minimum_eligible_predictions": 1000,
+      "minimum_calendar_days": 90,
+      "primary_metric": "winner Brier",
+      "decision": "single frozen half-life must beat baseline with paired DM p<0.05",
+      "roster_proxy": "days since last observed series; no manual roster labels",
+      "serving_change_before_verdict": false
+    },
+    "sharpe": null,
+    "notes": "PRÉ-REGISTRADA, NÃO EXECUTADA. Nenhum decay entra no rating canônico antes do veredito forward.",
+    "test_period": [
+      "2026-07-21",
+      "forward-open"
+    ]
   }
 ]

@@ -1,7 +1,7 @@
 """Mercado de previsão público para shadow CS; estritamente read-only."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import hashlib
 import ipaddress
 import json
@@ -35,8 +35,11 @@ def _timestamp(value: Any) -> datetime:
     if isinstance(value, (int, float)) and math.isfinite(float(value)):
         seconds = float(value) / 1000 if float(value) > 10_000_000_000 else float(value)
         return datetime.fromtimestamp(seconds, timezone.utc)
+    raw = str(value).strip()
+    if raw.isdigit():
+        return _timestamp(int(raw))
     try:
-        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
     except ValueError as exc:
         raise DataUnavailableError("timestamp inválido no order book") from exc
     if parsed.tzinfo is None:
@@ -87,6 +90,38 @@ class PolymarketProvider:
              f"{parsed.hostname}:443:{addresses[0]}", url],
             capture_output=True, text=True, encoding="utf-8", check=True)
         return json.loads(result.stdout)
+
+    def list_upcoming_matches(self, *, horizon_hours: int = 48,
+                              now: datetime | None = None) -> list[dict[str, Any]]:
+        observed = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+        limit = observed + timedelta(hours=horizon_hours)
+        query = urlencode({"q": "Counter-Strike", "events_status": "active",
+                           "limit_per_type": 100, "keep_closed_markets": 0})
+        payload = self.get_json(f"{GAMMA}/public-search?{query}")
+        if not isinstance(payload, dict) or not isinstance(payload.get("events"), list):
+            raise DataUnavailableError("busca de eventos Polymarket inválida")
+        found = []
+        for event in payload["events"]:
+            if event.get("closed") is True:
+                continue
+            try:
+                scheduled = _timestamp(event.get("startTime") or event.get("endDate"))
+            except DataUnavailableError:
+                continue
+            if not observed < scheduled <= limit:
+                continue
+            moneylines = [market for market in event.get("markets") or []
+                          if market.get("sportsMarketType") == "moneyline"
+                          and market.get("closed") is not True]
+            if len(moneylines) != 1:
+                continue
+            outcomes = _array(moneylines[0].get("outcomes"), "outcomes")
+            if len(outcomes) == 2:
+                found.append({"event_id": str(event.get("id")),
+                              "team_a": outcomes[0], "team_b": outcomes[1],
+                              "scheduled_at": scheduled.isoformat(timespec="seconds")})
+        unique = {row["event_id"]: row for row in found}
+        return sorted(unique.values(), key=lambda row: (row["scheduled_at"], row["event_id"]))
 
     @staticmethod
     def _midpoint(book: dict[str, Any]) -> tuple[float, float]:

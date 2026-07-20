@@ -30,6 +30,10 @@
 > Polymarket Gamma/CLOB read-only adicionada com identidade exata, formato BO,
 > enforcement PRE_EVENT e dedupe concorrente. Continua sem GO financeiro até
 > existir amostra prospectiva madura; passagem do tempo não é bug de código.
+> Primeira coleta real: 15 cotações PRE_EVENT em 20/07. Trials H3
+> (calibração assimétrica) e H4 (decay por inatividade) pré-registrados como
+> forward-only a partir de 21/07, mínimo 1.000 previsões e 90 dias; não foram
+> executados e não alteram o serving.
 
 > ## ADENDO ECOSSISTEMA (2026-07-18)
 >
