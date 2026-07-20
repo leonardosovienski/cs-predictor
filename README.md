@@ -90,6 +90,15 @@ exata e instante PRE_EVENT, consulta somente Gamma/CLOB públicos e grava em
 O coletor `upcoming` descobre e captura automaticamente moneylines abertas nas
 próximas 48 horas; é o entrypoint usado pela automação recorrente.
 
+O backtest auxiliar abaixo usa mercados encerrados e o histórico oficial de
+preços do CLOB. Ele aceita somente casamento exato e único com o HLTV, reconstrói
+o Elo/Platt prequential e recua o corte pela duração máxima da série para impedir
+preço in-play. Por governança, nunca incrementa o gate prospectivo:
+
+```powershell
+python scripts/backtest_market_historical.py --target 1000
+```
+
 ## Roadmap
 
 | Fase | Escopo | Status |
