@@ -26,7 +26,8 @@ def log(msg: str) -> None:
 def build_steps(corte: str):
     return [
         ("ingest", [sys.executable, "-X", "utf8", "-m", "src.ingest_hltv", "--until", corte], 3600),
-        ("ratings", [sys.executable, "-X", "utf8", str(ROOT / "scripts" / "backtest_walkforward.py")], 900),
+        ("ratings", [sys.executable, "-X", "utf8", str(ROOT / "scripts" / "backtest_walkforward.py"),
+                     "--write-artifacts"], 900),
         ("platt", [sys.executable, "-X", "utf8", str(ROOT / "scripts" / "backtest_calibracao.py")], 900),
     ]
 

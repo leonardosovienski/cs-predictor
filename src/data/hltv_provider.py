@@ -82,6 +82,10 @@ def parse_results_page(html: str) -> list[dict]:
         map_m = _MAP.search(block)
         mtext = (map_m.group(1).strip().lower() if map_m else "")
         score_a, score_b = int(nums[0]), int(nums[1])
+        # HLTV also lists drawn BO2/map results (for example 12-12).  They
+        # have no series winner and therefore cannot enter this binary model.
+        if score_a == score_b:
+            continue
         advertised = mtext if mtext in ("bo1", "bo3", "bo5") else "bo1"
         fmt = infer_format(score_a, score_b, advertised)
         ev = _EVENT.search(block)

@@ -12,6 +12,7 @@
 /data/market_shadow.jsonl
 /data/market_shadow.jsonl.lock
 /backups/
+/logs/operations/
 # trials.json + atestado são VERSIONADOS (denominador do DSR imortal)
 *.db
 *.log

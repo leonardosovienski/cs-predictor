@@ -101,6 +101,17 @@ def test_parse_bloco_quebrado_nao_derruba():
     assert len(rows) == 2                     # só o bloco quebrado fica fora
 
 
+def test_parse_resultado_empatado_sem_vencedor_e_ignorado():
+    empate = _HTML.replace(
+        '<span class="score-won">2</span> - <span class="score-lost">0</span>',
+        '<span class="score-won">12</span> - <span class="score-lost">12</span>',
+        1,
+    )
+    rows = parse_results_page(empate)
+    assert len(rows) == 2
+    assert all(row["match_id"] != 2372513 for row in rows)
+
+
 def test_db_upsert_idempotente():
     conn = db.connect(":memory:")
     r = {"match_id": 1, "date": "2026-07-11", "ts": 1783738869,
