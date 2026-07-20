@@ -9,6 +9,9 @@
 /data/ratings_maps.json
 /data/map_elo_summary.json
 /data/ingest_maps.log
+/data/market_shadow.jsonl
+/data/market_shadow.jsonl.lock
+/backups/
 # trials.json + atestado são VERSIONADOS (denominador do DSR imortal)
 *.db
 *.log

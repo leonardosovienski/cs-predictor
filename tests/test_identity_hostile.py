@@ -62,6 +62,12 @@ def test_snapshot_resolve_prefers_exact_case(tmp_path):
         _resolve(model, "leo")
 
 
+def test_snapshot_rejects_convenience_substring(model):
+    from src.cs_snapshots import SnapshotError, _resolve
+    with pytest.raises(SnapshotError, match="ambíguo ou ausente"):
+        _resolve(model, "Vital")
+
+
 @pytest.mark.parametrize("left,right", [
     ("LEO", "Leo"), ("CHAOS", "Chaos"), ("WINNERS", "Winners"),
 ])

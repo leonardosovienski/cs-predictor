@@ -61,9 +61,31 @@ src/
   data/hltv_provider.py     # stub HLTV (403 a cliente simples; Fase 1 decide a via)
 data/teams_cs.json          # HLTV Top 30 (2026-07-06) com Elo semente
 scripts/ci_check.py         # 3 barreiras: pytest, .ps1 ASCII, parse+smoke
-tests/                      # 99 testes (modelo, serving, config, core, higiene, identidade hostil)
+tests/                      # suíte completa (modelo, serving, backup, core, identidade hostil)
 vendor/predictor_core/      # v1.3.1 via sync_core (NÃO editar à mão)
 ```
+
+### Backup e restauração
+
+```powershell
+python -m src.backup_restore create --output backups/cs-AAAAMMDD
+python -m src.backup_restore verify --backup backups/cs-AAAAMMDD
+python -m src.backup_restore restore --backup backups/cs-AAAAMMDD --destination C:\restore\cs
+```
+
+O backup usa a API consistente do SQLite, inclui `ratings.json` e snapshots,
+e grava hashes SHA-256. A restauração exige uma raiz nova e nunca sobrescreve
+produção.
+
+### Mercado shadow read-only
+
+```powershell
+python scripts/collect_polymarket_shadow.py Vitality MOUZ --event-id ID_GAMMA
+```
+
+O coletor aceita apenas um ID Gamma explícito, exige moneyline com identidade
+exata e instante PRE_EVENT, consulta somente Gamma/CLOB públicos e grava em
+`data/market_shadow.jsonl`. Não existe caminho de ordem ou trading no projeto.
 
 ## Roadmap
 

@@ -1,0 +1,67 @@
+{
+  "audit_metadata": {
+    "database_write": false,
+    "model_reexecuted": false,
+    "network_used": false,
+    "ratings_write": false
+  },
+  "consumer_provenance": {
+    "artifact_kind": "matured_snapshot",
+    "artifact_schema_version": "cs-forward-snapshot/1.0",
+    "generated_at_utc": "2026-07-20T06:29:41Z",
+    "input_hashes": {
+      "calibration": "b24559eedfd672fa9d83ae6fe32cdf0c46c9214c31c65b511324b1a2ab2cb9eb",
+      "config": "43e1dca2474c8a451a921e3dc567a9a225bcef6151f9f9ce6b04086857d46ea4",
+      "database": "a7dbef610b176250e3b1d7fe91ac2d79acac13e2c258884c46e35ab0e2c6f2ee",
+      "event": "041e6db8d7178424e872bb78f0252ce467f46d39dd8c65068300c957846f8218",
+      "ratings": "40379586465d8958957b068f3e65ebb59fec575f6521673e7b9674bcb132e516",
+      "teams": "c3e89f994cb61f6270a36650cf45124b7210bd7a74ba5c4c6479f1851f063b5e"
+    },
+    "predictor_core_hash": "5df2319820f7fe69d48fe236e2774be0dc990cc90255ade411e99c99d6c83f11",
+    "predictor_core_version": "1.3.1-ga-20260716",
+    "project": "cs-predictor",
+    "project_branch": "main",
+    "project_commit": "31feed4f12ae5ad6301b0c4979be8ced3da8ba83",
+    "project_worktree_clean": true
+  },
+  "event_id": "stake-ranked-episode-3-2026-07-17-3dmax-gentle-mates",
+  "matured_at_utc": "2026-07-20T06:29:41Z",
+  "metrics": {
+    "winner_brier": 0.48205249,
+    "winner_hit": false,
+    "winner_probability": 0.3057
+  },
+  "official_result": {
+    "maps": [
+      {
+        "name": "Ancient",
+        "score_a": 13,
+        "score_b": 2
+      },
+      {
+        "name": "Cache",
+        "score_a": 13,
+        "score_b": 7
+      }
+    ],
+    "score": {
+      "team_a": 2,
+      "team_b": 0
+    },
+    "winner": "3DMAX"
+  },
+  "payload_hash": "2ec3e705ca33268c9c2dc28ad79c5c9e3cf1c31932ee8de9a1ce4e591bb5db0f",
+  "pre_event_path": "pre_event\\2026\\stake-ranked-episode-3-2026-07-17-3dmax-gentle-mates.json",
+  "pre_event_payload_hash": "8906e658353f2fce7e437d2dc0dd853c06ce1b0ac438e92360df5a3ff9078958",
+  "result_retrieved_at_utc": "2026-07-20T06:18:00Z",
+  "result_source": "HLTV match record: https://www.hltv.org/matches/2395712/3dmax-vs-gentle-mates-stake-ranked-episode-3",
+  "schema_version": "1.0",
+  "status": "MATURED",
+  "tools_provenance": {
+    "commit": "9f9f07e4c18ac07f18abb0fa058e676280ec3628",
+    "content_hash": "ace3b13cf1439ea7a86a475a06d3168a37e32799d0ad6adac38df82b497ad1ff",
+    "generated_at_utc": "2026-07-20T06:29:42Z",
+    "version": "1.3.0",
+    "worktree_clean": true
+  }
+}

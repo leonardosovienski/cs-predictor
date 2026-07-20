@@ -1,0 +1,22 @@
+{
+  "event_id": "stake-ranked-episode-3-2026-07-17-k27-phantom",
+  "winner": "K27",
+  "score": {
+    "team_a": 2,
+    "team_b": 0
+  },
+  "maps": [
+    {
+      "name": "Nuke",
+      "score_a": 13,
+      "score_b": 9
+    },
+    {
+      "name": "Ancient",
+      "score_a": 13,
+      "score_b": 6
+    }
+  ],
+  "result_source": "HLTV match record: https://www.hltv.org/matches/2395713/k27-vs-phantom-stake-ranked-episode-3",
+  "result_retrieved_at_utc": "2026-07-20T06:18:00Z"
+}

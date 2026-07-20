@@ -96,7 +96,7 @@ def _resolve(model: EloModel, requested: str) -> dict[str, Any]:
         return {"requested": requested, "canonical": canonical,
                 "team_id": canonical, "confidence": "EXACT"}
     try:
-        canonical = resolve_team(requested)["name"]
+        canonical = resolve_team(requested, allow_substring=False)["name"]
         return {"requested": requested, "canonical": canonical,
                 "team_id": canonical, "confidence": "UNIQUE_ALIAS"}
     except ValueError as exc:

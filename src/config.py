@@ -42,7 +42,7 @@ def identity_key(value: str) -> str:
     return unicodedata.normalize("NFC", value.strip()).casefold()
 
 
-def resolve_team(name: str) -> dict:
+def resolve_team(name: str, *, allow_substring: bool = True) -> dict:
     """Resolve identidade sem escolher silenciosamente entre candidatos."""
     teams = load_teams()
     stripped = name.strip()
@@ -78,6 +78,8 @@ def resolve_team(name: str) -> dict:
             f"alias ambíguo: {name!r} corresponde a entidades distintas "
             f"{candidates}")
 
+    if not allow_substring:
+        raise ValueError(f"time desconhecido: {name!r}; use nome exato ou alias")
     hits = [t for t in teams if key in identity_key(t["name"])]
     if len(hits) == 1:
         return hits[0]

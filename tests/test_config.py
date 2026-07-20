@@ -67,3 +67,9 @@ def test_resolve_team_normaliza_unicode_nfc_e_rejeita_vazio(monkeypatch):
     assert config.resolve_team("Cafe\u0301")["name"] == "Café"
     with pytest.raises(ValueError, match="nome vazio"):
         config.resolve_team("   ")
+
+
+def test_modo_rigoroso_rejeita_substring():
+    assert resolve_team("Mongol")["name"] == "The MongolZ"
+    with pytest.raises(ValueError, match="nome exato ou alias"):
+        resolve_team("Mongol", allow_substring=False)

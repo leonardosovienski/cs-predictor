@@ -1,0 +1,27 @@
+{
+  "event_id": "stake-ranked-episode-3-2026-07-17-ninjas-in-pyjamas-heroic",
+  "winner": "HEROIC",
+  "score": {
+    "team_a": 1,
+    "team_b": 2
+  },
+  "maps": [
+    {
+      "name": "Inferno",
+      "score_a": 11,
+      "score_b": 13
+    },
+    {
+      "name": "Nuke",
+      "score_a": 13,
+      "score_b": 9
+    },
+    {
+      "name": "Mirage",
+      "score_a": 9,
+      "score_b": 13
+    }
+  ],
+  "result_source": "HLTV match record: https://www.hltv.org/matches/2395714/ninjas-in-pyjamas-vs-heroic-stake-ranked-episode-3",
+  "result_retrieved_at_utc": "2026-07-20T06:18:00Z"
+}

@@ -16,12 +16,20 @@
 > A continuação de 2026-07-20 aplicou o mesmo contrato ao Top 30: Unicode
 > NFC + `casefold`, caixa exata primeiro e rejeição de colisões de nomes ou
 > aliases. Testes hostis em `tests/test_identity_hostile.py` e
-> `tests/test_config.py`; suíte 99 verde,
+> `tests/test_config.py`; suíte ampliada e verde,
 > CI 3/3. Verificado também nesta rodada: 0 `match_id` duplicado em
-> 17.138 séries (os 7 "duplicados exatos" por data/evento/placar são
+> 17.138 séries à época (os 7 "duplicados exatos" por data/evento/placar são
 > rematches reais com match_id HLTV distintos); 4 snapshots reais de
-> 2026 verificam (1 `VALID_FORWARD` com vínculo hash PRE_EVENT→MATURED,
-> 3 `VERIFIED` aguardando resultado).
+> 2026 verificam. Em 2026-07-20, os três resultados pendentes foram conferidos
+> no HLTV e maturados: estado atual = 4 `VALID_FORWARD`, 0 pendentes.
+> A ingestão incremental foi atualizada para 17.320 séries e os três jogos
+> receberam mapas detalhados. Backup/restore de `cs.db`, ratings e snapshots
+> foi implementado com manifesto SHA-256 e `integrity_check`; restore real
+> verificado em raiz temporária com 17.320 séries.
+> A Fase 1b deixou de estar bloqueada por descoberta de fonte: integração
+> Polymarket Gamma/CLOB read-only adicionada com identidade exata, formato BO,
+> enforcement PRE_EVENT e dedupe concorrente. Continua sem GO financeiro até
+> existir amostra prospectiva madura; passagem do tempo não é bug de código.
 
 > ## ADENDO ECOSSISTEMA (2026-07-18)
 >
