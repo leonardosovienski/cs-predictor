@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.collect_polymarket_shadow import append_once  # noqa: E402
+from scripts.collect_polymarket_shadow import append_once, enrich_with_frozen_model  # noqa: E402
 from src.data.polymarket_provider import DataUnavailableError, PolymarketProvider  # noqa: E402
 
 
@@ -19,6 +19,7 @@ def main() -> int:
         try:
             quote = provider.fetch_match(match["team_a"], match["team_b"],
                                          event_id=match["event_id"])
+            quote = enrich_with_frozen_model(quote, match["team_a"], match["team_b"])
             inserted += append_once(output, quote)
         except (DataUnavailableError, RuntimeError) as exc:
             failures += 1
