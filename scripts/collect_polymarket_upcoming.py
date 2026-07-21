@@ -21,7 +21,7 @@ def main() -> int:
                                          event_id=match["event_id"])
             quote = enrich_with_frozen_model(quote, match["team_a"], match["team_b"])
             inserted += append_once(output, quote)
-        except (DataUnavailableError, RuntimeError) as exc:
+        except (DataUnavailableError, RuntimeError, ValueError) as exc:
             failures += 1
             print(f"SKIP {match['event_id']}: {exc}")
     print(f"upcoming={len(matches)} inserted={inserted} failures={failures}")

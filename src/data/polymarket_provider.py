@@ -140,10 +140,11 @@ class PolymarketProvider:
     def fetch_match(self, team_a: str, team_b: str, *,
                     observed_at: datetime | None = None,
                     event_id: str | None = None) -> dict[str, Any]:
-        observed = observed_at or datetime.now(timezone.utc)
-        if observed.tzinfo is None or observed.utcoffset() is None:
+        if observed_at is not None and (
+                observed_at.tzinfo is None or observed_at.utcoffset() is None):
             raise ValueError("observed_at deve conter timezone")
-        observed = observed.astimezone(timezone.utc)
+        observed = (observed_at.astimezone(timezone.utc)
+                    if observed_at is not None else None)
         if event_id:
             event = self.get_json(f"{GAMMA}/events/{event_id}")
             events = [event] if isinstance(event, dict) else []
@@ -170,10 +171,14 @@ class PolymarketProvider:
         if not fmt:
             raise DataUnavailableError("moneyline sem formato BO1/BO3/BO5")
         scheduled = _timestamp(event.get("startTime") or event.get("endDate"))
-        if observed >= scheduled:
+        if observed is not None and observed >= scheduled:
             raise DataUnavailableError("coleta não é PRE_EVENT")
         books = [self.get_json(f"{CLOB}/book?{urlencode({'token_id': token})}")
                  for token in tokens]
+        if observed is None:
+            observed = datetime.now(timezone.utc)
+        if observed >= scheduled:
+            raise DataUnavailableError("coleta fora da janela PRE_EVENT")
         published = max(_timestamp(book.get("timestamp")) for book in books)
         if published > observed:
             raise DataUnavailableError("order book publicado depois da observação")
