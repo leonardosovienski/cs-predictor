@@ -13,6 +13,8 @@
 /data/market_shadow.jsonl.lock
 /data/historical_market_sample.jsonl
 /data/historical_market_sample.summary.json
+/data/market.db*
+/data/beyond_market_report.json
 /backups/
 /logs/operations/
 # trials.json + atestado são VERSIONADOS (denominador do DSR imortal)

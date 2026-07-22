@@ -111,5 +111,23 @@
       "2026-07-21",
       "forward-open"
     ]
+  },
+  {
+    "name": "h5-cs-beyond-market-retrospective",
+    "registered_at": "2026-07-21T00:00:00Z",
+    "params": {
+      "dataset": "Polymarket CLOB price-history + exact HLTV series mapping",
+      "canonicalization_version": "cs-event/1",
+      "train_test_policy": "strict temporal split; blend weight selected only in train",
+      "comparators": ["market", "elo-platt-prequential", "market_plus_model"],
+      "primary_metric": "out-of-sample log loss",
+      "economic_policy": "retrospective only; never counts toward prospective financial gate"
+    },
+    "sharpe": null,
+    "notes": "PRÉ-REGISTRADA. Objetivo: medir informação incremental do modelo sobre preços realmente disponíveis. Resultado máximo permitido: GATE_PASSED_FOR_PROSPECTIVE_SHADOW; capital permanece bloqueado.",
+    "test_period": [
+      "historical-split",
+      "retrospective-only"
+    ]
   }
 ]

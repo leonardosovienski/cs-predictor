@@ -1,5 +1,16 @@
 # HANDOFF.md — cs-predictor
 
+> ## SPORTS DB / MARKET DB (2026-07-21)
+>
+> A separação foi formalizada sem alterar o lifecycle criptográfico local:
+> `cs.db` permanece Sports DB, `market.db` guarda apenas cotações com contrato
+> econômico, e o mapping canônico versionado rejeita ambiguidade, mapa/série e
+> formatos incompatíveis. O Beyond Market usa corte temporal train/test e o
+> resultado máximo é `GATE_PASSED_FOR_PROSPECTIVE_SHADOW`; `real=True` continua
+> bloqueado incondicionalmente. A retrospectiva conservadora de 661 pares não
+> provou edge contra o mercado. Ver `docs/SPORTS_MARKET_CONTRACTS.md` e
+> `docs/PAST_ATTEMPT_LEDGER.md`.
+
 > ## ESTADO REVALIDADO (2026-07-20)
 >
 > Suíte completa: **110 verdes**; CI local: **3/3**. Vendor do

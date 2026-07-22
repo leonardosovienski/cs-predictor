@@ -104,6 +104,16 @@ preço in-play. Por governança, nunca incrementa o gate prospectivo:
 python scripts/backtest_market_historical.py --target 1000
 ```
 
+### Contrato Sports DB x Market DB
+
+Partidas e preços são bases distintas. `data/cs.db` mede o modelo esportivo;
+`data/market.db` só aceita moneyline de série com timestamp, bookmaker,
+proveniência e mapeamento canônico aprovado. O relatório Beyond Market compara
+mercado, modelo e combinação fora da amostra. Nenhum resultado libera capital:
+o máximo é `GATE_PASSED_FOR_PROSPECTIVE_SHADOW`. Contratos e limites estão em
+[`docs/SPORTS_MARKET_CONTRACTS.md`](docs/SPORTS_MARKET_CONTRACTS.md); o histórico
+de tentativas está em [`docs/PAST_ATTEMPT_LEDGER.md`](docs/PAST_ATTEMPT_LEDGER.md).
+
 ## Roadmap
 
 | Fase | Escopo | Status |

@@ -21,6 +21,26 @@ CREATE TABLE IF NOT EXISTS matches (
 );
 CREATE INDEX IF NOT EXISTS idx_matches_date ON matches(date);
 
+-- Camada Sports DB: metadados temporais/proveniência sem alterar a tabela que
+-- alimenta o Elo. A separação impede que um preço de mercado vire dado esportivo.
+CREATE TABLE IF NOT EXISTS sports_series_metadata (
+    source TEXT NOT NULL,
+    source_event_id TEXT NOT NULL,
+    match_id INTEGER NOT NULL UNIQUE,
+    match_start_at TEXT NOT NULL,
+    team_a_id TEXT NOT NULL,
+    team_b_id TEXT NOT NULL,
+    series_format TEXT NOT NULL CHECK(series_format IN ('bo1','bo3','bo5')),
+    competition_id TEXT NOT NULL,
+    roster_snapshot_id TEXT,
+    result_available_at TEXT NOT NULL,
+    ingestion_batch_id TEXT NOT NULL,
+    provenance_hash TEXT NOT NULL,
+    PRIMARY KEY(source, source_event_id),
+    FOREIGN KEY(match_id) REFERENCES matches(match_id)
+);
+CREATE INDEX IF NOT EXISTS idx_sports_metadata_start ON sports_series_metadata(match_start_at);
+
 CREATE TABLE IF NOT EXISTS match_maps (
     match_id    INTEGER NOT NULL,        -- FK matches.match_id
     seq         INTEGER NOT NULL,        -- ordem do mapa dentro da série (1..5)
@@ -72,6 +92,24 @@ def upsert_match_maps(conn, match_id: int, maps: list[dict]) -> int:
         for i, m in enumerate(maps)])
     conn.commit()
     return cur.rowcount
+
+
+def upsert_sports_series_metadata(conn, row: dict) -> None:
+    """Registra o contrato Sports DB; não aceita resultado disponível antes do jogo."""
+    required = ("source", "source_event_id", "match_id", "match_start_at", "team_a_id",
+                "team_b_id", "series_format", "competition_id", "result_available_at",
+                "ingestion_batch_id", "provenance_hash")
+    if any(not row.get(key) for key in required):
+        raise ValueError("metadado Sports DB incompleto")
+    if row["team_a_id"] == row["team_b_id"] or row["series_format"] not in {"bo1", "bo3", "bo5"}:
+        raise ValueError("identidade/formato Sports DB inválido")
+    if row["result_available_at"] < row["match_start_at"] or len(row["provenance_hash"]) != 64:
+        raise ValueError("tempo/proveniência Sports DB inválido")
+    conn.execute("""INSERT OR REPLACE INTO sports_series_metadata
+                 VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
+                 tuple(row.get(key) for key in required[:8]) + (row.get("roster_snapshot_id"),)
+                 + tuple(row.get(key) for key in required[8:]))
+    conn.commit()
 
 
 def match_ids_missing_maps(conn, teams: list[str] | None = None) -> list[int]:
