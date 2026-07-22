@@ -1,5 +1,6 @@
 import pytest
 
+from src import db
 from src.market_db import (CANONICALIZATION_VERSION, ContractError, EventMapping,
                            MarketDB, MarketQuote, SportsSeries,
                            beyond_market_validate, canonical_event_id)
@@ -62,6 +63,24 @@ def test_sports_contract_rejects_future_roster_result_and_bad_hash():
     SportsSeries(**base).validate()
     with pytest.raises(ContractError): SportsSeries(**{**base, "result_available_at": "2026-07-20T11:00:00+00:00"}).validate()
     with pytest.raises(ContractError): SportsSeries(**{**base, "provenance_hash": "bad"}).validate()
+
+
+def test_sports_db_metadata_isolated_from_match_result_table():
+    conn = db.connect(":memory:")
+    db.upsert_matches(conn, [{"match_id": 7, "date": "2026-07-20", "ts": 1,
+                              "team_a": "A", "team_b": "B", "score_a": 2,
+                              "score_b": 0, "format": "bo3", "event": "Cup"}])
+    db.upsert_sports_series_metadata(conn, {"source": "hltv", "source_event_id": "7", "match_id": 7,
+        "match_start_at": START, "team_a_id": "a", "team_b_id": "b", "series_format": "bo3",
+        "competition_id": "cup", "roster_snapshot_id": None, "result_available_at": "2026-07-20T13:00:00+00:00",
+        "ingestion_batch_id": "batch", "provenance_hash": "f" * 64})
+    assert conn.execute("SELECT source_event_id FROM sports_series_metadata").fetchone() == ("7",)
+
+
+def test_two_same_day_events_need_competition_or_start_to_be_distinct():
+    first = canonical_event_id(team_a_id="a", team_b_id="b", match_start_at=START, series_format="bo3", competition_id="one")
+    second = canonical_event_id(team_a_id="a", team_b_id="b", match_start_at="2026-07-20T16:00:00+00:00", series_format="bo3", competition_id="two")
+    assert first != second
 
 
 def test_beyond_market_has_strict_train_test_cut_and_no_financial_go():
