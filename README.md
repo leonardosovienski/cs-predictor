@@ -114,6 +114,16 @@ o máximo é `GATE_PASSED_FOR_PROSPECTIVE_SHADOW`. Contratos e limites estão em
 [`docs/SPORTS_MARKET_CONTRACTS.md`](docs/SPORTS_MARKET_CONTRACTS.md); o histórico
 de tentativas está em [`docs/PAST_ATTEMPT_LEDGER.md`](docs/PAST_ATTEMPT_LEDGER.md).
 
+Para materializar a coorte prospectiva com backup e relatório:
+
+```powershell
+python scripts/migrate_prospective_market.py --backup-dir backups/sports-market-AAAAMMDD
+python scripts/market_shadow_status.py
+```
+
+`EVENT_TIME_PASSED` não significa resultado maturado: sem mapping aceito,
+resultado oficial validado e closing pré-evento, a série fica fora do Beyond Market.
+
 ## Roadmap
 
 | Fase | Escopo | Status |

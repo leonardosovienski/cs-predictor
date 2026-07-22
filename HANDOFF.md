@@ -11,6 +11,15 @@
 > provou edge contra o mercado. Ver `docs/SPORTS_MARKET_CONTRACTS.md` e
 > `docs/PAST_ATTEMPT_LEDGER.md`.
 
+> ## CADEIA PROSPECTIVA (2026-07-22)
+>
+> Migração executada com backup: 17.324 séries materializadas como `PARTIAL`
+> pois HLTV histórico não informa roster nem disponibilidade de resultado com
+> precisão suficiente. O status não usa mais horário passado como maturidade.
+> A coorte atual tem mappings aceitos somente quando a quote possui event ID e
+> competição; linhas legadas são rejeitadas para settlement, preservadas no
+> ledger. Capital real continua impossibilitado.
+
 > ## ESTADO REVALIDADO (2026-07-20)
 >
 > Suíte completa: **110 verdes**; CI local: **3/3**. Vendor do

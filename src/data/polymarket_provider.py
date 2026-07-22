@@ -192,7 +192,10 @@ class PolymarketProvider:
         return {
             "schema_version": "cs-market-quote/1.0", "quote_id": quote_id,
             "source": "polymarket-clob", "source_kind": "prediction_market",
-            "market_id": str(market.get("id")), "team_a": team_a, "team_b": team_b,
+            "market_id": str(market.get("id")), "source_event_id": str(event.get("id")),
+            "competition_name": str(event.get("seriesSlug") or event.get("seriesTitle")
+                                    or event.get("title") or ""),
+            "team_a": team_a, "team_b": team_b,
             "format": f"bo{fmt.group(1)}", "scheduled_at": scheduled.isoformat(timespec="seconds"),
             "observed_at": observed.isoformat(timespec="seconds"),
             "published_at": published.isoformat(timespec="seconds"),

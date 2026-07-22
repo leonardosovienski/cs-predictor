@@ -51,3 +51,17 @@ combinação; nunca treina e testa no mesmo período. Seu melhor resultado é
 O gate econômico exige CLV, ROI líquido, custos, IC95, cobertura e concentração
 prospectivos. Nenhum arquivo, teste ou comando libera capital automaticamente;
 `record_bet(real=True)` sempre falha fechada.
+
+## Migração e settlement prospectivo
+
+`python scripts/migrate_prospective_market.py --backup-dir backups/<nome>` cria
+backup consistente antes de materializar o contrato. Séries históricas sem
+roster point-in-time ou `result_available_at` exato recebem `PARTIAL`, nunca
+campos inventados. Quotes legados sem `source_event_id` e competição recebem
+`REJECTED_MAPPING`; não são eliminados do log, mas ficam fora da avaliação.
+
+Estados de evento: `PRE_EVENT`, `EVENT_TIME_PASSED`, `RESULT_PENDING`,
+`RESULT_VALIDATED`, `CLOSING_PENDING`, `SETTLEMENT_READY`, `MATURED`, `VOID`,
+`REJECTED`. `EVENT_TIME_PASSED` não é maturidade. Closing é a última cotação
+elegível estritamente anterior ao início (`last-valid-pre-event/1`); resultado
+validado + closing + modelo congelado produzem settlement idempotente.

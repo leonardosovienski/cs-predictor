@@ -15,6 +15,7 @@
 /data/historical_market_sample.summary.json
 /data/market.db*
 /data/beyond_market_report.json
+/data/sports_market_migration_report.json
 /backups/
 /logs/operations/
 # trials.json + atestado são VERSIONADOS (denominador do DSR imortal)

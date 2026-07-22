@@ -35,8 +35,11 @@ def check_pytest() -> None:
 
 def check_ps1_ascii() -> None:
     print("[2/3] encoding de scripts .ps1 (ASCII puro)...")
-    ps1 = [p for p in ROOT.rglob("*.ps1")
-           if ".venv" not in p.parts and ".git" not in p.parts]
+    # Só arquivos versionados pertencem ao contrato do projeto. Worktrees da
+    # ferramenta podem existir abaixo da raiz e não devem contaminar este CI.
+    tracked = subprocess.run(["git", "ls-files", "*.ps1"], cwd=ROOT,
+                             capture_output=True, text=True, check=False)
+    ps1 = [ROOT / line for line in tracked.stdout.splitlines() if line]
     for p in ps1:
         try:
             p.read_bytes().decode("ascii")

@@ -10,6 +10,7 @@
 | CS-06 | Polymarket shadow | observar moneylines atuais | Gamma/CLOB público | quotes PRE_EVENT read-only; coleta pausada por decisão do operador | `polymarket_provider.py` | aguardando amostra | sim, prospectivo |
 | CS-07 | Polymarket retrospectivo | comparar modelo e mercado | eventos fechados + histórico CLOB | 661 pares conservadores; mercado teve Brier menor, sem edge demonstrado | `backtest_market_historical.py` | resultado negativo/inconclusivo | sim, como baseline, não como gate forward |
 | CS-08 | Kaggle/PandaScore histórico | fonte adicional de jogos | `historical_shadow.py`/PandaScore | não contém odds timestampadas; promoção financeira proibida | `ingest_pandascore_history.py` | rejeitada para Market DB | apenas pesquisa esportiva |
+| CS-09 | Migração prospectiva Sports/Market | fechar quote→resultado→settlement | `cs.db` + shadow Polymarket | 17.324 séries classificadas PARTIAL; quotes legados sem event_id/competição rejeitados; novos quotes carregam ambos os campos | `migrate_prospective_market.py`, relatório runtime | em coleta | sim, somente coorte com mapping aceito |
 
 Tentativas negativas não devem ser repetidas sem nova hipótese, nova fonte ou
 alteração versionada do contrato.
