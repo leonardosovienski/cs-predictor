@@ -79,6 +79,12 @@ produção.
 
 ### Mercado shadow read-only
 
+> **Encerrado por decisao humana em 2026-07-23.** A coorte prospectiva Beyond
+> Market esta `CLOSED_BY_HUMAN_DECISION`, antes de atingir 50 liquidacoes e 30
+> dias. Nao foi aprovada nem refutada. Coleta, status operacional, liquidacao e
+> avaliacao falham fechados; a operacao com dinheiro real permanece `NO_GO`.
+> Evidencia: `docs/records/beyond_market_closure.json`.
+
 ```powershell
 python scripts/collect_polymarket_shadow.py Vitality MOUZ --event-id ID_GAMMA
 python scripts/collect_polymarket_upcoming.py

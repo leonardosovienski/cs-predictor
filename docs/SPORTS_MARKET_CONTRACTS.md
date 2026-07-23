@@ -43,6 +43,15 @@ de uma partida candidata são rejeitados.
 
 ## Beyond Market e gates
 
+### Encerramento humano da coorte de 2026-07-23
+
+Esta coorte esta `CLOSED_BY_HUMAN_DECISION`, com operacao real `NO_GO`. Foi
+encerrada antes de atingir 50 settlements e 30 dias prospectivos; nao equivale
+a aprovacao ou refutacao cientifica. O registro versionado e auditavel esta em
+`docs/records/beyond_market_closure.json`. Enquanto ele existir, coleta,
+atualizacao de resultado, settlement, status operacional e avaliacao Beyond
+Market falham fechados. Reabertura exige nova decisao humana auditavel.
+
 O validador divide por tempo: treina o blend mercado+modelo numa janela anterior
 e mede log loss, Brier e acerto em janela posterior. Compara mercado, modelo e
 combinação; nunca treina e testa no mesmo período. Seu melhor resultado é

@@ -7,10 +7,12 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts.collect_polymarket_shadow import append_once, enrich_with_frozen_model  # noqa: E402
+from src.beyond_market_closure import assert_beyond_market_open_for_root  # noqa: E402
 from src.data.polymarket_provider import DataUnavailableError, PolymarketProvider  # noqa: E402
 
 
 def main() -> int:
+    assert_beyond_market_open_for_root(ROOT)
     provider = PolymarketProvider()
     output = ROOT / "data" / "market_shadow.jsonl"
     matches = provider.list_upcoming_matches(horizon_hours=48)

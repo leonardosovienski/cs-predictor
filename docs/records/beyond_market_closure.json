@@ -1,0 +1,33 @@
+{
+  "schema_version": "cs-beyond-market-closure/1.0",
+  "scientific_status": "CLOSED_BY_HUMAN_DECISION",
+  "operational_status": "NO_GO",
+  "closed_at_utc": "2026-07-23T05:16:01Z",
+  "human_decision": {
+    "reason": "Encerramento humano antes de atingir 50 liquidações e 30 dias prospectivos.",
+    "beyond_market_conclusion": "Beyond Market não foi aprovado nem refutado; a coorte foi encerrada antes da amostra prospectiva mínima.",
+    "real_money": "Operação com dinheiro real permanece bloqueada permanentemente."
+  },
+  "final_counters": {
+    "matured_matches": 0,
+    "required_matured_matches": 50,
+    "calendar_days": 2,
+    "required_calendar_days": 30,
+    "accepted_mappings": 9,
+    "ambiguous_mappings": 0,
+    "rejected_legacy_mappings": 23,
+    "awaiting_official_result": 3,
+    "pre_event": 6,
+    "scheduler_last_task_result": 0
+  },
+  "preserved_artifacts": {
+    "data/cs.db": "sha256:136b5bd80789d13e5b93f1a3f477360391bb7ab63ed1a38233ddca29de9e7ca3",
+    "data/market.db": "sha256:db2e49afd933e4ce3154e1483bc1536068a42ac4e92fecd0c767d6d0cc9518c8",
+    "data/market_shadow.jsonl": "sha256:895c55a067cfadf019739ed37e69b5918e582a37ec8ef830df2f585f438b91a6",
+    "data/sports_market_migration_report.json": "sha256:b7a9f258860563a39e9b5c5fe9fe5d2101f4ddd5b722b0c2e2d614b784b14c01",
+    "snapshots/": "sha256-tree:6e2fcb4262ff7397e5630da33c0b83dbe72a7d3f04bdc02882da113f6ae04507 (15 files)"
+  },
+  "reopening": "Proibida sem nova decisão humana auditável e novo registro versionado; este registro não deve ser removido para reabrir a coorte.",
+  "market_gate_json": "Ausente legitimamente; não foi criado por este encerramento.",
+  "source_commit": "d63797ca0a7d18f12ebf69fb9a5cf20d4d23048c"
+}

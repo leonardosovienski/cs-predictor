@@ -13,6 +13,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.data.polymarket_provider import PolymarketProvider  # noqa: E402
+from src.beyond_market_closure import assert_beyond_market_open_for_root  # noqa: E402
 from src.predict import run as predict_match                 # noqa: E402
 
 
@@ -51,6 +52,7 @@ def append_once(path: Path, quote: dict) -> bool:
 
 
 def main(argv: list[str] | None = None) -> int:
+    assert_beyond_market_open_for_root(ROOT)
     parser = argparse.ArgumentParser(description="Polymarket CS shadow read-only")
     parser.add_argument("team_a"); parser.add_argument("team_b")
     parser.add_argument("--event-id", required=True,

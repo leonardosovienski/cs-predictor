@@ -11,6 +11,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.market_db import ContractError, beyond_market_validate  # noqa: E402
+from src.beyond_market_closure import BeyondMarketClosedError, assert_beyond_market_open  # noqa: E402
 
 
 def _rows(path: Path) -> list[dict]:
@@ -46,9 +47,10 @@ def main(argv=None) -> int:
     parser.add_argument("--output", type=Path)
     args = parser.parse_args(argv)
     try:
+        assert_beyond_market_open()
         result = beyond_market_validate(_rows(args.input), train_end_at=args.train_end,
                                         minimum_test_rows=args.minimum_test_rows)
-    except ContractError as exc:
+    except (ContractError, BeyondMarketClosedError) as exc:
         print(str(exc), file=sys.stderr)
         return 2
     result["schema_version"] = "cs-beyond-market/1.0"

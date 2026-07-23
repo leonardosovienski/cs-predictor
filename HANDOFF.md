@@ -1,5 +1,14 @@
 # HANDOFF.md — cs-predictor
 
+> ## ENCERRAMENTO PROSPECTIVO BEYOND MARKET (2026-07-23)
+>
+> Decisao humana: `CLOSED_BY_HUMAN_DECISION`; status operacional: `NO_GO`.
+> A coorte foi encerrada antes da amostra minima; nao foi aprovada nem
+> refutada. O job `cs-market-shadow` foi desabilitado. O registro versionado
+> com hashes e contadores finais esta em `docs/records/beyond_market_closure.json`.
+> Coleta, atualizacao, status, settlement e avaliacao sao bloqueados; reabertura
+> exige nova decisao humana auditavel.
+
 > ## SPORTS DB / MARKET DB (2026-07-21)
 >
 > A separação foi formalizada sem alterar o lifecycle criptográfico local:

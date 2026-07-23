@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from .market_db import ContractError, canonical_event_id
+from .beyond_market_closure import assert_beyond_market_open, is_production_market_db
 from .config import identity_key
 
 ACCEPTED_MAPPING = {"EXACT", "RULE_BASED", "MANUAL_CONFIRMED"}
@@ -134,11 +135,16 @@ class ProspectiveStore:
         c = sqlite3.connect(self.path); c.execute("PRAGMA journal_mode=WAL"); c.execute("PRAGMA busy_timeout=5000")
         c.executescript(PROSPECTIVE_SCHEMA); return c
 
+    def _assert_open(self) -> None:
+        if is_production_market_db(self.path):
+            assert_beyond_market_open()
+
     @staticmethod
     def _event_key(row: dict) -> str:
         return f"{row.get('source','polymarket-clob')}:{row.get('market_id') or row['quote_id']}"
 
     def import_quotes(self, conn: sqlite3.Connection, rows: list[dict], *, batch_id: str) -> dict[str, int]:
+        self._assert_open()
         counts = {"imported": 0, "exact": 0, "rejected": 0, "invalid": 0}
         for row in rows:
             try:
@@ -185,6 +191,7 @@ class ProspectiveStore:
 
     def record_result(self, conn: sqlite3.Connection, *, event_key: str, winner: str, score: dict,
                       result_source: str, result_available_at: str) -> None:
+        self._assert_open()
         event = conn.execute("SELECT team_a,team_b,match_start_at,mapping_status FROM prospective_events WHERE event_key=?", (event_key,)).fetchone()
         if not event: raise ContractError("evento prospectivo desconhecido")
         a, b, start, mapping = event
@@ -196,6 +203,7 @@ class ProspectiveStore:
         conn.execute("UPDATE prospective_events SET event_state='RESULT_VALIDATED' WHERE event_key=?", (event_key,)); conn.commit()
 
     def settle(self, conn: sqlite3.Connection, *, event_key: str) -> str:
+        self._assert_open()
         event = conn.execute("SELECT team_a,match_start_at,mapping_status FROM prospective_events WHERE event_key=?", (event_key,)).fetchone()
         if not event: raise ContractError("evento prospectivo desconhecido")
         a, start, mapping = event
@@ -223,6 +231,7 @@ class ProspectiveStore:
         conn.commit(); return "MATURED"
 
     def status(self, conn: sqlite3.Connection, *, now: datetime | None = None) -> dict[str, Any]:
+        self._assert_open()
         now = now or datetime.now(timezone.utc)
         rows = conn.execute("SELECT event_state,mapping_status,match_start_at FROM prospective_events").fetchall()
         counts = {state: 0 for state in EVENT_STATES}
