@@ -14,6 +14,7 @@
 /data/historical_market_sample.jsonl
 /data/historical_market_sample.summary.json
 /data/market.db*
+/data/collection_only/
 /data/beyond_market_report.json
 /data/sports_market_migration_report.json
 /backups/
