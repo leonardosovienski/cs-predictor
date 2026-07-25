@@ -85,7 +85,7 @@ produção.
 > avaliacao falham fechados; a operacao com dinheiro real permanece `NO_GO`.
 > Evidencia: `docs/records/beyond_market_closure.json`.
 
-O job legado `cs-market-shadow` permanece desabilitado. A unica automacao de
+O job legado `cs-market-shadow` foi removido do Scheduler. A unica automacao de
 coleta permitida e `cs-archival-collection`, instalada pelo mecanismo
 canonico `powershell -File ..\tools\install_collection_only_tasks.ps1`; ela
 usa `operational_runner`, runtime externo e nunca consulta mercados/apostas.
@@ -94,6 +94,10 @@ usa `operational_runner`, runtime externo e nunca consulta mercados/apostas.
 python scripts/collect_polymarket_shadow.py Vitality MOUZ --event-id ID_GAMMA
 python scripts/collect_polymarket_upcoming.py
 ```
+
+Esses comandos sao historicos e nao devem ser executados. O instalador
+`scripts/install_market_shadow_task.ps1` falha explicitamente para impedir que
+`cs-market-shadow` seja recriado; use somente `cs-archival-collection`.
 
 O coletor aceita apenas um ID Gamma explícito, exige moneyline com identidade
 exata e instante PRE_EVENT, consulta somente Gamma/CLOB públicos e grava em

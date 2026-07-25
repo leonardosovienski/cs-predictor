@@ -4,7 +4,7 @@
 >
 > Decisao humana: `CLOSED_BY_HUMAN_DECISION`; status operacional: `NO_GO`.
 > A coorte foi encerrada antes da amostra minima; nao foi aprovada nem
-> refutada. O job `cs-market-shadow` foi desabilitado. O registro versionado
+> refutada. O job `cs-market-shadow` foi removido do Scheduler. O registro versionado
 > com hashes e contadores finais esta em `docs/records/beyond_market_closure.json`.
 > Coleta, atualizacao, status, settlement e avaliacao sao bloqueados; reabertura
 > exige nova decisao humana auditavel.
@@ -19,7 +19,7 @@
 > `data/collection_only/upstream_events.json`: arquivo ausente ou corrompido
 > emite `SOURCE_UNAVAILABLE`; JSON valido vazio emite `NO_UPSTREAM_EVENTS`.
 > Nenhuma ausencia e tratada como coleta saudavel. Beyond Market permanece
-> `CLOSED_BY_HUMAN_DECISION`, `cs-market-shadow` permanece Disabled e nenhuma
+> `CLOSED_BY_HUMAN_DECISION`, `cs-market-shadow` permanece removido e nenhuma
 > hipotese, trial ou gate foi reaberto.
 
 > ## SPORTS DB / MARKET DB (2026-07-21)
