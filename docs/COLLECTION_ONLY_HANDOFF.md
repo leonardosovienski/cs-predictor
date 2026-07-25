@@ -14,10 +14,13 @@ Runtime separado: `data/collection_only/` (`run.json`, `archive.jsonl` e
 Cada run recebe `collection_run_id` novo e cada fato traz `canonical_event_id`,
 provenance SHA-256, hash do snapshot de fonte, commit e versao do core.
 
-Instalacao do job: `powershell -File scripts/install_archival_collection_task.ps1`.
-Ele cria apenas `cs-archival-collection`; `cs-market-shadow` deve continuar
-Disabled. O job consome `data/collection_only/upstream_events.json`, exportado
-por fonte esportiva oficial, e nunca automatiza servicos de apostas.
+Instalacao do job: `powershell -File ..\tools\install_collection_only_tasks.ps1`.
+O registro canonico instala `cs-archival-collection` por `operational_runner`,
+com lock, timeout, heartbeat e event log em
+`%LOCALAPPDATA%\predictor-tools\runtime\cs-predictor\cs-archival-collection`.
+`cs-market-shadow` deve continuar Disabled. O job consome
+`data/collection_only/upstream_events.json`, exportado por fonte esportiva
+oficial, e nunca automatiza servicos de apostas.
 
 ## Contrato e lifecycle
 
