@@ -9,6 +9,19 @@
 > Coleta, atualizacao, status, settlement e avaliacao sao bloqueados; reabertura
 > exige nova decisao humana auditavel.
 
+> ## READINESS FINAL — COLLECTION_ONLY (2026-07-25)
+>
+> **`PRODUCTION_READY_WITH_EXTERNAL_BLOCKER`**. O codigo, vendor, scheduler,
+> provenance e runtime externo foram validados. `cs-archival-collection` usa
+> o `operational_runner` canonico, com lock, timeout, heartbeat e event log em
+> `%LOCALAPPDATA%\predictor-tools\runtime\cs-predictor\cs-archival-collection`.
+> A dependencia restante e o exportador esportivo oficial que materializa
+> `data/collection_only/upstream_events.json`: arquivo ausente ou corrompido
+> emite `SOURCE_UNAVAILABLE`; JSON valido vazio emite `NO_UPSTREAM_EVENTS`.
+> Nenhuma ausencia e tratada como coleta saudavel. Beyond Market permanece
+> `CLOSED_BY_HUMAN_DECISION`, `cs-market-shadow` permanece Disabled e nenhuma
+> hipotese, trial ou gate foi reaberto.
+
 > ## SPORTS DB / MARKET DB (2026-07-21)
 >
 > A separação foi formalizada sem alterar o lifecycle criptográfico local:
