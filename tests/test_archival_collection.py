@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from scripts.run_archival_collection import _source_unavailable
 from src.archival_collection import ArchivalCollection, ArchivalCollectionError, canonical_event_id
 
 
@@ -38,3 +39,9 @@ def test_past_without_official_result_stalls_and_no_events_alert(tmp_path):
     assert "RESULT_INGESTION_STALLED" in service.status(now=NOW)["alerts"]
     later = NOW + timedelta(hours=49)
     assert "COLLECTION_STALLED_48H" in service.status(now=later)["alerts"]
+
+
+def test_missing_upstream_is_structured_not_an_empty_success(tmp_path):
+    payload = _source_unavailable(tmp_path / "missing.json", "UPSTREAM_INPUT_MISSING")
+    assert payload["status"] == "SOURCE_UNAVAILABLE"
+    assert payload["accepted"] == 0 and payload["input_present"] is False
