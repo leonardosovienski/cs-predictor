@@ -11,6 +11,11 @@ if str(WORKSPACE) not in sys.path:
     sys.path.insert(0, str(WORKSPACE))
 from tools.secret_redaction import collect_sensitive_values, safe_redact_text
 
+# `pythonw.exe` (executavel de toda tarefa agendada) nao tem console: um
+# processo de console filho ganharia janela VISIVEL na tela do dono.
+# Saida ja e capturada, entao a flag nao esconde nada.
+_NO_WINDOW = 0x08000000 if sys.platform == "win32" else 0
+
 SENSITIVE_VALUES = collect_sensitive_values()
 
 
@@ -50,7 +55,7 @@ def main() -> int:
     worst = 0
     for name, command, timeout in steps:
         try:
-            result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
+            result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout, creationflags=_NO_WINDOW)
             for line in (result.stdout or "").strip().splitlines()[-2:]:
                 log(f"  [{name}] {line}")
             if result.returncode != 0:

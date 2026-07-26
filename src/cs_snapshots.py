@@ -21,6 +21,11 @@ import uuid
 from .config import ROOT, identity_key, load_config, load_teams, resolve_team
 from .model import EloModel
 
+# `pythonw.exe` (executavel de toda tarefa agendada) nao tem console: um
+# processo de console filho ganharia janela VISIVEL na tela do dono.
+# Saida ja e capturada, entao a flag nao esconde nada.
+_NO_WINDOW = 0x08000000 if sys.platform == "win32" else 0
+
 SCHEMA_VERSION = "1.0"
 PRE_EVENT = "PRE_EVENT"
 MATURED = "MATURED"
@@ -61,7 +66,7 @@ def _utc_text(value: datetime) -> str:
 
 
 def _git(root: Path, *args: str) -> str:
-    result = subprocess.run(["git", "-C", str(root), *args], text=True, capture_output=True, check=False)
+    result = subprocess.run(["git", "-C", str(root), *args], text=True, capture_output=True, check=False, creationflags=_NO_WINDOW)
     if result.returncode != 0:
         raise SnapshotError("provenance Git do projeto indisponível")
     return result.stdout.strip()

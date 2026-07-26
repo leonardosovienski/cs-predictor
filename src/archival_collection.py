@@ -6,12 +6,18 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+import sys
 from typing import Any
 import unicodedata
 import uuid
 
 from . import config  # noqa: F401 -- injeta vendor/predictor_core no sys.path
 from predictor_core.contracts.collection import CollectionArchive, LifecycleState, ObservationEnvelope
+
+# `pythonw.exe` (executavel de toda tarefa agendada) nao tem console: um
+# processo de console filho ganharia janela VISIVEL na tela do dono.
+# Saida ja e capturada, entao a flag nao esconde nada.
+_NO_WINDOW = 0x08000000 if sys.platform == "win32" else 0
 
 ROOT = Path(__file__).resolve().parents[1]
 COLLECTION_ROOT = ROOT / "data" / "collection_only"
@@ -50,7 +56,7 @@ def canonical_event_id(row: dict[str, Any]) -> str:
 
 
 def _commit() -> str:
-    return subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"], text=True, capture_output=True, check=True).stdout.strip()
+    return subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"], text=True, capture_output=True, check=True, creationflags=_NO_WINDOW).stdout.strip()
 
 
 def ensure_run(*, now: datetime | None = None) -> dict[str, str]:
