@@ -26,6 +26,12 @@ def log(msg: str) -> None:
 def build_steps(corte: str):
     return [
         ("ingest", [sys.executable, "-X", "utf8", "-m", "src.ingest_hltv", "--until", corte], 3600),
+        # Liquidação vem logo DEPOIS do ingest: ela lê o resultado oficial que o
+        # ingest acabou de trazer. Sem este passo a coorte prospectiva coleta
+        # cotação para sempre e nunca matura — era o defeito B-2, que manteve o
+        # contador em 0/50 até 2026-07-25. Evento sem resultado fica pendente.
+        ("settle", [sys.executable, "-X", "utf8",
+                    str(ROOT / "scripts" / "settle_prospective_market.py")], 600),
         ("ratings", [sys.executable, "-X", "utf8", str(ROOT / "scripts" / "backtest_walkforward.py"),
                      "--write-artifacts"], 900),
         ("platt", [sys.executable, "-X", "utf8", str(ROOT / "scripts" / "backtest_calibracao.py")], 900),
