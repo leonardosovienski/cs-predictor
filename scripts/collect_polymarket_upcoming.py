@@ -1,4 +1,13 @@
-"""Descobre e coleta todas as moneylines CS futuras nas próximas 48h."""
+"""Descobre e coleta todas as moneylines CS futuras nas próximas 48h.
+
+O resumo vai para stdout E para `logs/operations/collect_polymarket_upcoming.log`.
+O arquivo existe porque a tarefa agendada roda sob `pythonw.exe` desde
+2026-07-26 (para não abrir console na tela do operador), e pythonw DESCARTA
+stdout — sem o log, cada execução ficaria sem registro do que coletou. O
+`lol-ratings-semanal` passou 6 dias em PARTIAL sem ninguém notar; menos
+observabilidade que isso não é aceitável.
+"""
+from datetime import datetime, timezone
 from pathlib import Path
 import sys
 
@@ -9,6 +18,20 @@ if str(ROOT) not in sys.path:
 from scripts.collect_polymarket_shadow import append_once, enrich_with_frozen_model  # noqa: E402
 from src.beyond_market_closure import assert_beyond_market_open_for_root  # noqa: E402
 from src.data.polymarket_provider import DataUnavailableError, PolymarketProvider  # noqa: E402
+
+LOG = ROOT / "logs" / "operations" / "collect_polymarket_upcoming.log"
+
+
+def log(mensagem: str) -> None:
+    """Escreve no stdout e no log. Falha ao logar nunca derruba a coleta."""
+    print(mensagem)
+    try:
+        LOG.parent.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        with LOG.open("a", encoding="utf-8") as fh:
+            fh.write(f"{stamp} {mensagem}\n")
+    except OSError:
+        pass
 
 
 def main() -> int:
@@ -25,8 +48,8 @@ def main() -> int:
             inserted += append_once(output, quote)
         except (DataUnavailableError, RuntimeError, ValueError) as exc:
             failures += 1
-            print(f"SKIP {match['event_id']}: {exc}")
-    print(f"upcoming={len(matches)} inserted={inserted} failures={failures}")
+            log(f"SKIP {match['event_id']}: {exc}")
+    log(f"upcoming={len(matches)} inserted={inserted} failures={failures}")
     return 0 if failures == 0 or inserted > 0 else 2
 
 
