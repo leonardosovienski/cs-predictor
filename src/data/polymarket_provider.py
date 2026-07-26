@@ -66,24 +66,43 @@ class PolymarketProvider:
                 raise DataUnavailableError(
                     f"Polymarket indisponível: {exc}; fallback DoH: {fallback}") from fallback
 
+    # Em 2026-07-26 o resolvedor desta rede passou a devolver NXDOMAIN para
+    # polymarket.com E o IP 1.1.1.1 ficou inalcançável — o fallback parou junto.
+    # Sondagem: 1.1.1.1 sem resposta, mas `cloudflare-dns.com` responde 200. O
+    # IP é bloqueado; o hostname não. Mais de um endpoint evita que a queda de
+    # um mate a coleta inteira.
+    DOH_ENDPOINTS = ("https://cloudflare-dns.com/dns-query",
+                     "https://dns.google/resolve",
+                     "https://1.1.1.1/dns-query")
+
+    def _resolve_via_doh(self, hostname: str) -> str:
+        """Primeiro endpoint DoH que devolver um A público vence. Sem nenhum,
+        falha fechado — nunca chuta endereço."""
+        erros = []
+        for endpoint in self.DOH_ENDPOINTS:
+            try:
+                dns = httpx.get(
+                    endpoint, params={"name": hostname, "type": "A"},
+                    headers={"accept": "application/dns-json"}, timeout=self.timeout)
+                dns.raise_for_status()
+                for row in dns.json().get("Answer") or []:
+                    if row.get("type") != 1:
+                        continue
+                    address = ipaddress.ip_address(row.get("data", ""))
+                    if not address.is_global:
+                        raise ValueError("DoH retornou endereço não público")
+                    return str(address)
+                erros.append(f"{endpoint}: sem registro A")
+            except (httpx.HTTPError, ValueError) as exc:
+                erros.append(f"{endpoint}: {type(exc).__name__}")
+        raise ValueError("nenhum endpoint DoH resolveu (" + "; ".join(erros) + ")")
+
     def _curl_via_doh(self, url: str) -> Any:
         parsed = urlparse(url)
         allowed = {"gamma-api.polymarket.com", "clob.polymarket.com"}
         if parsed.scheme != "https" or parsed.hostname not in allowed:
             raise ValueError("host não permitido no fallback DoH")
-        dns = httpx.get("https://1.1.1.1/dns-query",
-                        params={"name": parsed.hostname, "type": "A"},
-                        headers={"accept": "application/dns-json"}, timeout=self.timeout)
-        dns.raise_for_status()
-        addresses = []
-        for row in dns.json().get("Answer") or []:
-            if row.get("type") == 1:
-                address = ipaddress.ip_address(row.get("data", ""))
-                if not address.is_global:
-                    raise ValueError("DoH retornou endereço não público")
-                addresses.append(str(address))
-        if not addresses:
-            raise ValueError("DoH não retornou endereço A")
+        addresses = [self._resolve_via_doh(parsed.hostname)]
         result = subprocess.run(
             ["curl", "--fail", "--silent", "--show-error", "--max-time",
              str(max(1, int(self.timeout))), "--resolve",

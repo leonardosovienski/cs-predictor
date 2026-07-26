@@ -30,6 +30,11 @@ def build_steps(corte: str):
         # ingest acabou de trazer. Sem este passo a coorte prospectiva coleta
         # cotação para sempre e nunca matura — era o defeito B-2, que manteve o
         # contador em 0/50 até 2026-07-25. Evento sem resultado fica pendente.
+        # As cotações coletadas ficam em market_shadow.jsonl; sem este passo
+        # elas nunca viram evento prospectivo e nunca maturam. `import_quotes`
+        # só tinha como caller a migração one-shot de 22/07 e os testes.
+        ("import_quotes", [sys.executable, "-X", "utf8",
+                           str(ROOT / "scripts" / "import_market_quotes.py")], 600),
         ("settle", [sys.executable, "-X", "utf8",
                     str(ROOT / "scripts" / "settle_prospective_market.py")], 600),
         ("ratings", [sys.executable, "-X", "utf8", str(ROOT / "scripts" / "backtest_walkforward.py"),
