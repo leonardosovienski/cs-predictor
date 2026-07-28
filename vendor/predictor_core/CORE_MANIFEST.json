@@ -1,5 +1,6 @@
 {
   "files": {
+    "VERSION": "2c3edb2317e9c7bbc7eb5e3eabfa264286d8779d2bc5719610307d2eb2c18244",
     "__init__.py": "9a7d9ab6d69adb937a6989910ad822388fa9934e39701b7013c0aa9199fda458",
     "contracts/__init__.py": "17302f9a43ded5570fb13553db76b86c874830ce2367989971c2100d0817d3e2",
     "contracts/collection.py": "c53a135d079c58c76efa0d825c89f73c6bb783ffd64adb2dd4fd541b0d197ba7",
@@ -44,10 +45,9 @@
     "testing/prequential.py": "126b6095dece59f3330688159f059e16e1f057a14b85a9aa3e28c95c6d6eb787",
     "testing/secrets.py": "768e979f3d9be68078a75df6c759957fe8e3c6efaf50d7468434a999bf2a5a1f",
     "testing/stress.py": "f4fa52114add1f99040231f8e568727f39860460307c156e6877fd4712c2c741",
-    "testing/synth.py": "f0b9d0b1ef862e5d7dd2220489bb57412d09810f74b6e00e18f5ddad93fa1e76",
-    "VERSION": "2c3edb2317e9c7bbc7eb5e3eabfa264286d8779d2bc5719610307d2eb2c18244"
+    "testing/synth.py": "f0b9d0b1ef862e5d7dd2220489bb57412d09810f74b6e00e18f5ddad93fa1e76"
   },
   "aggregate": "0cfd8ecbd3e45538",
-  "synced_at": "2026-07-23T06:28:22+00:00",
+  "synced_at": "2026-07-28T19:03:23+00:00",
   "source_version": "1.3.3-ga-20260723"
 }
