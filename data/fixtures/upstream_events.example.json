@@ -1,0 +1,38 @@
+{
+  "events": [
+    {
+      "source": "example-exporter",
+      "source_record_id": "EXAMPLE-0001",
+      "scheduled_at": "2026-07-26T18:00:00Z",
+      "team_a": "Example Alpha",
+      "team_b": "Example Bravo",
+      "competition": "Example Invitational 2026",
+      "format": "bo3",
+      "scope": "series"
+    },
+    {
+      "source": "example-exporter",
+      "source_record_id": "EXAMPLE-0002",
+      "scheduled_at": "2026-07-24T15:00:00Z",
+      "team_a": "Example Alpha Academy",
+      "team_b": "Example Charlie",
+      "competition": "Example Academy Series 2026",
+      "format": "bo1",
+      "scope": "series"
+    },
+    {
+      "source": "example-exporter",
+      "source_record_id": "EXAMPLE-0003",
+      "scheduled_at": "2026-07-23T12:00:00Z",
+      "team_a": "Example Bravo",
+      "team_b": "Example Charlie",
+      "competition": "Example Invitational 2026",
+      "format": "bo5",
+      "scope": "series",
+      "official_result": {
+        "winner": "Example Bravo",
+        "validated_at": "2026-07-23T16:45:00Z"
+      }
+    }
+  ]
+}

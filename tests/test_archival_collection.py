@@ -25,6 +25,22 @@ def test_collection_only_lifecycle_complete_is_idempotent_and_isolated(tmp_path)
     assert all(x["collection_only"] is True for x in history)
 
 
+def test_subsecond_clock_still_archives_the_full_lifecycle(tmp_path):
+    # O runner nao passa observed_at: o relogio real chega com microssegundos.
+    service = ArchivalCollection(tmp_path)
+    finished = row(scheduled_at="2030-01-01T10:00:00Z", official_result={"winner": "Example", "score": [0, 2], "validated_at": "2030-01-01T11:00:00Z"})
+    assert service.ingest([finished], observed_at=NOW.replace(microsecond=123456)) == {"accepted": 1, "ambiguous": 0, "invalid": 0, "complete": 1}
+    assert service.ingest([finished], observed_at=NOW.replace(microsecond=987654))["complete"] == 1
+    assert [x["state"] for x in service.archive._events()] == ["DISCOVERED", "VALIDATED", "SNAPSHOT_RECORDED", "EVENT_STARTED", "OFFICIAL_RESULT_FOUND", "COMPLETE"]
+
+
+def test_default_wall_clock_ingest_matches_the_scheduled_runner(tmp_path):
+    service = ArchivalCollection(tmp_path)
+    past = row(scheduled_at="2024-01-01T10:00:00Z", official_result={"winner": "Example", "score": [0, 2], "validated_at": "2024-01-01T13:00:00Z"})
+    assert service.ingest([past]) == {"accepted": 1, "ambiguous": 0, "invalid": 0, "complete": 1}
+    assert service.ingest([past])["complete"] == 1
+
+
 def test_rejects_map_series_mix_identity_collision_and_invalid_format(tmp_path):
     service = ArchivalCollection(tmp_path)
     counts = service.ingest([row(scope="map"), row(team_b="Example Academy"), row(format="bo2"), row(identity_ambiguous=True)], observed_at=NOW)

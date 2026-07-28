@@ -90,7 +90,10 @@ class ArchivalCollection:
 
     def ingest(self, rows: list[dict[str, Any]], *, observed_at: datetime | None = None) -> dict[str, int]:
         run = self.run
-        observed = observed_at or datetime.now(timezone.utc); counts = {"accepted": 0, "ambiguous": 0, "invalid": 0, "complete": 0}
+        # O archive serializa em segundos; microssegundo sobrevivente quebraria a
+        # comparacao com o predecessor relido do log na proxima transicao.
+        observed = (observed_at or datetime.now(timezone.utc)).replace(microsecond=0)
+        counts = {"accepted": 0, "ambiguous": 0, "invalid": 0, "complete": 0}
         for raw in rows:
             try:
                 row = normalize_source_row(raw); event_id = canonical_event_id(row)
