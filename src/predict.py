@@ -34,8 +34,20 @@ def _log_path() -> Path:
 
 def run(team_a: str, team_b: str, *, fmt: str = "bo3",
         handicap: float | None = None, maps: list[str] | None = None,
-        now: datetime | None = None, dry_run: bool = False) -> dict:
+        now: datetime | None = None, scheduled_start_at: datetime | None = None,
+        dry_run: bool = False) -> dict:
     now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None or now.utcoffset() is None:
+        raise ValueError("now exige timezone")
+    if scheduled_start_at is None:
+        if not dry_run:
+            raise ValueError("scheduled_start_at e obrigatorio para previsao persistida")
+        scheduled_start_at = now
+    if scheduled_start_at.tzinfo is None or scheduled_start_at.utcoffset() is None:
+        raise ValueError("scheduled_start_at exige timezone")
+    scheduled_start_at = scheduled_start_at.astimezone(timezone.utc)
+    if not dry_run and now > scheduled_start_at:
+        raise ValueError("previsao persistida exige inicio futuro ou presente")
     model = EloModel()
     if maps:
         mp = MapEloModel(base=model)
@@ -68,12 +80,13 @@ def run(team_a: str, team_b: str, *, fmt: str = "bo3",
 
     point = PredictionPoint(
         predicted_at=now,
-        matures_at=now + timedelta(hours=FORMAT_HOURS[fmt]),
+        matures_at=scheduled_start_at + timedelta(hours=FORMAT_HOURS[fmt]),
         value={"prob_team_a": r["prob_team_a"], "format": fmt,
                "mapas_esperados": r["mapas_esperados"]},
         metadata={"team_a": r["team_a"], "team_b": r["team_b"],
                   "model": r["model"]})
     r["predicted_at"] = point.predicted_at.isoformat(timespec="seconds")
+    r["scheduled_start_at"] = scheduled_start_at.isoformat(timespec="seconds")
     r["matures_at"] = point.matures_at.isoformat(timespec="seconds")
 
     if dry_run:
@@ -113,14 +126,17 @@ def main(argv=None) -> int:
     ap.add_argument("--dry-run", action="store_true",
                     help="consulta exploratória: não grava no ledger "
                          "predictions.jsonl nem emite telemetria")
+    ap.add_argument("--scheduled-start", required=True,
+                    help="inicio UTC ISO-8601 da serie")
     args = ap.parse_args(argv)
 
     cfg = load_config()
     fmt = args.format or cfg.get("default_format", "bo3")
     maps = [m.strip() for m in args.maps.split(",")] if args.maps else None
     try:
+        scheduled = datetime.fromisoformat(args.scheduled_start.replace("Z", "+00:00"))
         r = run(args.team_a, args.team_b, fmt=fmt, handicap=args.handicap,
-                maps=maps, dry_run=args.dry_run)
+                maps=maps, scheduled_start_at=scheduled, dry_run=args.dry_run)
     except ValueError as e:
         print(str(e), file=sys.stderr)
         return 2

@@ -24,14 +24,14 @@ def main(argv=None):
  p=argparse.ArgumentParser(); p.add_argument("--input", type=Path, default=ROOT / "data" / "collection_only" / "upstream_events.json"); p.add_argument("--status", action="store_true"); p.add_argument("--status-output", type=Path); a=p.parse_args(argv)
  if not a.input.is_file():
   payload = _source_unavailable(a.input, "UPSTREAM_INPUT_MISSING")
-  _write_status(a.status_output, payload); print(json.dumps(payload, sort_keys=True)); return 0
+  _write_status(a.status_output, payload); print(json.dumps(payload, sort_keys=True)); return 2
  try:
   loaded = json.loads(a.input.read_text(encoding="utf-8"))
   rows = loaded if isinstance(loaded, list) else loaded.get("events") if isinstance(loaded, dict) else None
   if not isinstance(rows, list): raise ValueError("events array required")
  except (OSError, json.JSONDecodeError, ValueError):
   payload = _source_unavailable(a.input, "UPSTREAM_INPUT_INVALID")
-  _write_status(a.status_output, payload); print(json.dumps(payload, sort_keys=True)); return 0
+  _write_status(a.status_output, payload); print(json.dumps(payload, sort_keys=True)); return 2
  service=ArchivalCollection(); payload=service.ingest(rows)
  status = service.status()
  payload.update(collection_only=True, collection_run_id=status["collection_run_id"], status=("NO_UPSTREAM_EVENTS" if not rows else "COLLECTED"))

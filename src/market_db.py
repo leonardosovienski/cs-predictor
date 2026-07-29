@@ -17,6 +17,7 @@ import statistics
 from typing import Any, Iterable
 
 from .config import identity_key
+from .beyond_market_closure import assert_beyond_market_open, is_production_market_db
 
 CANONICALIZATION_VERSION = "cs-event/1"
 MAPPING_STATUSES = {"EXACT", "RULE_BASED", "MANUAL_CONFIRMED", "AMBIGUOUS", "REJECTED"}
@@ -206,6 +207,8 @@ class MarketDB:
         self.path = Path(path)
 
     def connect(self) -> sqlite3.Connection:
+        if is_production_market_db(self.path):
+            assert_beyond_market_open()
         self.path.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(self.path)
         conn.execute("PRAGMA foreign_keys=ON")

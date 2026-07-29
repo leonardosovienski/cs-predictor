@@ -1,5 +1,14 @@
 # cs-predictor
 
+> **Estado operacional canonico (2026-07-29): COLLECTION_ONLY.** Beyond
+> Market esta permanentemente fechado; `cs-market-shadow`, coleta de odds,
+> importacao, settlement e avaliacao de mercado nao sao operacoes permitidas.
+> O unico job permitido e `cs-archival-collection`.
+
+> **Estado cientifico:** os numeros historicos H1 abaixo nao sao canonicos
+> enquanto o replay prequential nao for reexecutado com a atualizacao Elo por
+> vencedor de serie corrigida. Nao use os artefatos anteriores para decisao.
+
 > **Status: Fase 1 CONCLUÍDA (2026-07-11).** HLTV destravado (curl_cffi
 > impersonate); 17.100 séries coletadas e backtest prequential rodado:
 > **H1 (Elo vencedor da série) COMPROVADA** — Brier 0,4573 vs semente
@@ -73,9 +82,11 @@ python -m src.backup_restore verify --backup backups/cs-AAAAMMDD
 python -m src.backup_restore restore --backup backups/cs-AAAAMMDD --destination C:\restore\cs
 ```
 
-O backup usa a API consistente do SQLite, inclui `ratings.json` e snapshots,
-e grava hashes SHA-256. A restauração exige uma raiz nova e nunca sobrescreve
-produção.
+O backup usa a API consistente do SQLite, inclui ratings, calibracao, ratings
+por mapa, snapshots, configuracao, metadados do core e artefatos Market
+preservados. Ele grava hashes SHA-256 e a restauracao verifica novamente os
+bytes copiados, mantendo o manifesto no destino. A restauracao exige uma raiz
+nova e nunca sobrescreve producao.
 
 ### Mercado shadow read-only
 
@@ -91,8 +102,8 @@ canonico `powershell -File ..\tools\install_collection_only_tasks.ps1`; ela
 usa `operational_runner`, runtime externo e nunca consulta mercados/apostas.
 
 ```powershell
-python scripts/collect_polymarket_shadow.py Vitality MOUZ --event-id ID_GAMMA
-python scripts/collect_polymarket_upcoming.py
+# Unica automacao permitida:
+powershell -File scripts/install_archival_collection_task.ps1
 ```
 
 Esses comandos sao historicos e nao devem ser executados. O instalador
@@ -103,12 +114,9 @@ O coletor aceita apenas um ID Gamma explícito, exige moneyline com identidade
 exata e instante PRE_EVENT, consulta somente Gamma/CLOB públicos e grava em
 `data/market_shadow.jsonl`. Não existe caminho de ordem ou trading no projeto.
 
-Para acumulação prospectiva automática, instale o coletor read-only a cada
-30 minutos com `powershell -File scripts/install_market_shadow_task.ps1
--RunNow`. A tarefa criada é `cs-market-shadow`, usa `MultipleInstances
-IgnoreNew` e nunca possui caminho de ordem ou trading.
-O coletor `upcoming` descobre e captura automaticamente moneylines abertas nas
-próximas 48 horas; é o entrypoint usado pela automação recorrente.
+Nao instale nem execute qualquer coletor de mercado. O instalador legado
+`install_market_shadow_task.ps1` aborta deliberadamente; os entrypoints de
+Polymarket permanecem apenas como evidencia historica bloqueada.
 
 O backtest auxiliar abaixo usa mercados encerrados e o histórico oficial de
 preços do CLOB. Ele aceita somente casamento exato e único com o HLTV, reconstrói

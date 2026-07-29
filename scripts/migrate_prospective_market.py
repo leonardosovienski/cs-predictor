@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path: sys.path.insert(0, str(ROOT))
 
 from src.backup_restore import create_backup  # noqa: E402
+from src.beyond_market_closure import assert_beyond_market_open  # noqa: E402
 from src.prospective_market import ProspectiveStore, migrate_sports_db  # noqa: E402
 
 
@@ -23,6 +24,7 @@ def main(argv=None) -> int:
     p.add_argument("--backup-dir", type=Path, required=True)
     p.add_argument("--report", type=Path, default=ROOT / "data" / "sports_market_migration_report.json")
     a = p.parse_args(argv)
+    assert_beyond_market_open()
     backup = create_backup(a.backup_dir)
     sports = sqlite3.connect(ROOT / "data" / "cs.db")
     try: sports_report = migrate_sports_db(sports, migration_id=a.migration_id)

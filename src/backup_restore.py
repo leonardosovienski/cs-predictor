@@ -35,6 +35,23 @@ def _files(root: Path) -> list[Path]:
                   if path.is_file() and path.name != "BACKUP_MANIFEST.json")
 
 
+def _copy_sqlite_snapshot(source_db: Path, target_db: Path) -> None:
+    """Make a transactionally consistent SQLite copy without WAL sidecars."""
+    source = sqlite3.connect(f"file:{source_db}?mode=ro", uri=True)
+    target = sqlite3.connect(target_db)
+    try:
+        source.backup(target)
+    finally:
+        target.close()
+        source.close()
+
+
+def _copy_if_file(source: Path, target: Path) -> None:
+    if source.is_file():
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
+
+
 def create_backup(destination: Path, *, root: Path = ROOT) -> Path:
     destination = destination.resolve()
     if destination.exists():
@@ -47,16 +64,17 @@ def create_backup(destination: Path, *, root: Path = ROOT) -> Path:
         source_db = root / "data" / "cs.db"
         if not source_db.is_file():
             raise BackupError("data/cs.db ausente")
-        source = sqlite3.connect(f"file:{source_db}?mode=ro", uri=True)
-        target = sqlite3.connect(data / "cs.db")
-        try:
-            source.backup(target)
-        finally:
-            target.close()
-            source.close()
-        ratings = root / "data" / "ratings.json"
-        if ratings.is_file():
-            shutil.copy2(ratings, data / "ratings.json")
+        _copy_sqlite_snapshot(source_db, data / "cs.db")
+        for name in ("ratings.json", "ratings_maps.json", "calibration_platt.json",
+                     "predictions.jsonl", "market_shadow.jsonl",
+                     "sports_market_migration_report.json"):
+            _copy_if_file(root / "data" / name, data / name)
+        market_db = root / "data" / "market.db"
+        if market_db.is_file():
+            _copy_sqlite_snapshot(market_db, data / "market.db")
+        for name in ("config.yaml", "data/teams_cs.json",
+                     "vendor/predictor_core/VERSION", "vendor/predictor_core/CORE_MANIFEST.json"):
+            _copy_if_file(root / name, temporary / name)
         snapshots = root / "snapshots"
         if snapshots.is_dir():
             shutil.copytree(snapshots, temporary / "snapshots")
@@ -105,9 +123,16 @@ def restore_backup(backup: Path, destination_root: Path) -> Path:
     destination_root = destination_root.resolve()
     if destination_root.exists():
         raise BackupError(f"raiz de restauração já existe: {destination_root}")
-    shutil.copytree(backup.resolve(), destination_root)
-    (destination_root / "BACKUP_MANIFEST.json").unlink()
-    return destination_root
+    temporary = destination_root.with_name(
+        f".{destination_root.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        shutil.copytree(backup.resolve(), temporary)
+        verify_backup(temporary)
+        temporary.rename(destination_root)
+        return destination_root
+    except Exception:
+        shutil.rmtree(temporary, ignore_errors=True)
+        raise
 
 
 def main(argv: list[str] | None = None) -> int:

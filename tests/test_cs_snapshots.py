@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
+import sqlite3
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
@@ -21,13 +23,33 @@ def _hash(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _runtime_root(path: Path) -> Path:
+    """Minimal isolated scientific runtime; tests never require gitignored data."""
+    data = path / "data"
+    data.mkdir(parents=True)
+    conn = sqlite3.connect(data / "cs.db")
+    conn.execute("CREATE TABLE matches(date TEXT, event TEXT, team_a TEXT, team_b TEXT)")
+    conn.commit(); conn.close()
+    (data / "ratings.json").write_text('{"Vitality": 1590, "MOUZ": 1507}', encoding="utf-8")
+    (data / "calibration_platt.json").write_text('{"a": 1.0, "b": 0.0}', encoding="utf-8")
+    shutil.copy2(ROOT / "config.yaml", path / "config.yaml")
+    shutil.copy2(ROOT / "data" / "teams_cs.json", data / "teams_cs.json")
+    vendor = path / "vendor" / "predictor_core"; vendor.mkdir(parents=True)
+    for name in ("VERSION", "CORE_MANIFEST.json"):
+        shutil.copy2(ROOT / "vendor" / "predictor_core" / name, vendor / name)
+    return path
+
+
 @pytest.fixture(autouse=True)
-def strict_provenance(monkeypatch):
+def strict_provenance(monkeypatch, tmp_path):
+    runtime = _runtime_root(tmp_path / "runtime")
+    monkeypatch.setitem(snapshots.create_pre_event_snapshot.__kwdefaults__, "root", runtime)
     monkeypatch.setattr(snapshots, "_tools_provenance", lambda: {
         "version": "1.1.0", "commit": "2c3d501189cf031bb140203cc9ceb6b835b929d8",
         "content_hash": "40b8a99d28138842090b951fac1158255d231e73260033cb8dd57142db7effa6",
         "worktree_clean": True, "generated_at_utc": "2030-01-01T10:00:00Z"})
     monkeypatch.setattr(snapshots, "_git", lambda _root, *args: {"rev-parse": "a" * 40, "branch": "main", "status": ""}[args[0]])
+    return runtime
 
 
 def _event(path: Path, **changes) -> Path:
@@ -52,15 +74,15 @@ def _result(path: Path, **changes) -> Path:
     return path
 
 
-def test_valid_pre_event_is_read_only_and_complete(tmp_path: Path):
-    before = (_hash(ROOT / "data" / "cs.db"), _hash(ROOT / "data" / "ratings.json"))
+def test_valid_pre_event_is_read_only_and_complete(tmp_path: Path, strict_provenance: Path):
+    before = (_hash(strict_provenance / "data" / "cs.db"), _hash(strict_provenance / "data" / "ratings.json"))
     path = _pre(tmp_path)
     payload = snapshots.load_and_verify_snapshot(path)
     assert payload["status"] == snapshots.PRE_EVENT
     assert payload["tools_provenance"]["version"] == "1.1.0"
     assert payload["consumer_provenance"]["project_worktree_clean"] is True
     assert payload["aliases_resolved"]["team_a"]["canonical"] == "Vitality"
-    assert before == (_hash(ROOT / "data" / "cs.db"), _hash(ROOT / "data" / "ratings.json"))
+    assert before == (_hash(strict_provenance / "data" / "cs.db"), _hash(strict_provenance / "data" / "ratings.json"))
 
 
 def test_rejects_naive_late_missing_format_alias_and_existing_result(tmp_path: Path, monkeypatch):
@@ -103,9 +125,9 @@ def test_missing_rating_and_determinism_without_network(tmp_path: Path, monkeypa
     assert json.loads(first.read_text(encoding="utf-8")) == json.loads(second.read_text(encoding="utf-8"))
 
 
-def test_matured_links_pre_event_without_model_or_state_changes(tmp_path: Path, monkeypatch):
+def test_matured_links_pre_event_without_model_or_state_changes(tmp_path: Path, monkeypatch, strict_provenance: Path):
     pre = _pre(tmp_path)
-    before = (_hash(ROOT / "data" / "cs.db"), _hash(ROOT / "data" / "ratings.json"))
+    before = (_hash(strict_provenance / "data" / "cs.db"), _hash(strict_provenance / "data" / "ratings.json"))
     monkeypatch.setattr(snapshots.EloModel, "predict_match", lambda *_: pytest.fail("maturity must not re-run model"))
     matured = snapshots.mature_snapshot(event_id="test-cs-2030-bo3", year=2030, result_file=_result(tmp_path / "result.json"), snapshots_root=tmp_path / "snapshots", now=datetime(2030, 1, 2, 17, tzinfo=timezone.utc))
     payload = json.loads(matured.read_text(encoding="utf-8"))
@@ -113,7 +135,7 @@ def test_matured_links_pre_event_without_model_or_state_changes(tmp_path: Path, 
     assert snapshots.load_and_verify_matured_snapshot(
         matured, snapshots_root=tmp_path / "snapshots")["payload_hash"] == payload["payload_hash"]
     assert payload["audit_metadata"]["model_reexecuted"] is False
-    assert before == (_hash(ROOT / "data" / "cs.db"), _hash(ROOT / "data" / "ratings.json"))
+    assert before == (_hash(strict_provenance / "data" / "cs.db"), _hash(strict_provenance / "data" / "ratings.json"))
     with pytest.raises(snapshots.SnapshotError, match="já existe"):
         snapshots.mature_snapshot(event_id="test-cs-2030-bo3", year=2030, result_file=_result(tmp_path / "result.json"), snapshots_root=tmp_path / "snapshots")
 

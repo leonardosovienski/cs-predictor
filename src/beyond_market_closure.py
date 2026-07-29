@@ -30,21 +30,16 @@ def closure_record(path: Path | None = None) -> dict | None:
     except (OSError, json.JSONDecodeError) as exc:
         raise BeyondMarketClosedError(f"registro de encerramento ilegível: {record_path}") from exc
     status = record.get("scientific_status")
-    if status not in {"CLOSED_BY_HUMAN_DECISION", "REOPENED_BY_HUMAN_DECISION"}:
+    if status != "CLOSED_BY_HUMAN_DECISION":
         raise BeyondMarketClosedError(f"registro de encerramento inválido: {record_path}")
-    if status == "REOPENED_BY_HUMAN_DECISION":
-        required = {"reopened_at_utc", "reopening_decision", "supersedes_commit"}
-        if not required.issubset(record):
-            raise BeyondMarketClosedError("reabertura sem nova decisao humana auditavel")
     return record
 
 
 def assert_beyond_market_open(path: Path | None = None) -> None:
     record = closure_record(path)
-    if record and record.get("scientific_status") != "REOPENED_BY_HUMAN_DECISION":
+    if record:
         raise BeyondMarketClosedError(
-            "Beyond Market CLOSED_BY_HUMAN_DECISION; nova decisão humana auditável "
-            "é obrigatória para reabrir a coorte"
+            "Beyond Market CLOSED_BY_HUMAN_DECISION; COLLECTION_ONLY e obrigatorio"
         )
 
 

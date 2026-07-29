@@ -1,5 +1,14 @@
 {
+  "schema_version": "cs-beyond-market-closure/1.1",
+  "scientific_status": "CLOSED_BY_HUMAN_DECISION",
+  "operational_status": "NO_GO",
   "closed_at_utc": "2026-07-23T05:16:01Z",
+  "human_decision": {
+    "reason": "Encerramento humano antes de atingir 50 liquidacoes e 30 dias prospectivos.",
+    "beyond_market_conclusion": "Beyond Market nao foi aprovado nem refutado; a coorte foi encerrada antes da amostra prospectiva minima.",
+    "real_money": "Operacao com dinheiro real permanece bloqueada permanentemente."
+  },
+  "reopening": "Proibida neste repositorio. O escopo permanente e COLLECTION_ONLY.",
   "final_counters": {
     "accepted_mappings": 9,
     "ambiguous_mappings": 0,
@@ -12,13 +21,6 @@
     "required_matured_matches": 50,
     "scheduler_last_task_result": 0
   },
-  "human_decision": {
-    "beyond_market_conclusion": "Beyond Market não foi aprovado nem refutado; a coorte foi encerrada antes da amostra prospectiva mínima.",
-    "real_money": "Operação com dinheiro real permanece bloqueada permanentemente.",
-    "reason": "Encerramento humano antes de atingir 50 liquidações e 30 dias prospectivos."
-  },
-  "market_gate_json": "Ausente legitimamente; não foi criado por este encerramento.",
-  "operational_status": "NO_GO",
   "preserved_artifacts": {
     "data/cs.db": "sha256:136b5bd80789d13e5b93f1a3f477360391bb7ab63ed1a38233ddca29de9e7ca3",
     "data/market.db": "sha256:db2e49afd933e4ce3154e1483bc1536068a42ac4e92fecd0c767d6d0cc9518c8",
@@ -26,43 +28,5 @@
     "data/sports_market_migration_report.json": "sha256:b7a9f258860563a39e9b5c5fe9fe5d2101f4ddd5b722b0c2e2d614b784b14c01",
     "snapshots/": "sha256-tree:6e2fcb4262ff7397e5630da33c0b83dbe72a7d3f04bdc02882da113f6ae04507 (15 files)"
   },
-  "previous_closure": {
-    "closed_at_utc": "2026-07-23T05:16:01Z",
-    "final_counters": {
-      "accepted_mappings": 9,
-      "ambiguous_mappings": 0,
-      "awaiting_official_result": 3,
-      "calendar_days": 2,
-      "matured_matches": 0,
-      "pre_event": 6,
-      "rejected_legacy_mappings": 23,
-      "required_calendar_days": 30,
-      "required_matured_matches": 50,
-      "scheduler_last_task_result": 0
-    },
-    "human_decision": {
-      "beyond_market_conclusion": "Beyond Market não foi aprovado nem refutado; a coorte foi encerrada antes da amostra prospectiva mínima.",
-      "real_money": "Operação com dinheiro real permanece bloqueada permanentemente.",
-      "reason": "Encerramento humano antes de atingir 50 liquidações e 30 dias prospectivos."
-    },
-    "market_gate_json": "Ausente legitimamente; não foi criado por este encerramento.",
-    "reopening": "Proibida sem nova decisão humana auditável e novo registro versionado; este registro não deve ser removido para reabrir a coorte.",
-    "scientific_status": "CLOSED_BY_HUMAN_DECISION",
-    "source_commit": "d63797ca0a7d18f12ebf69fb9a5cf20d4d23048c"
-  },
-  "reopened_at_utc": "2026-07-25T22:38:42Z",
-  "reopening": "Proibida sem nova decisão humana auditável e novo registro versionado; este registro não deve ser removido para reabrir a coorte.",
-  "reopening_decision": {
-    "decided_at_utc": "2026-07-25T22:38:42Z",
-    "decided_by": "operador (Leonardo Sanches Sovienski)",
-    "executed_by": "Claude Code, a pedido explicito do operador em 2026-07-25",
-    "new_cohort": "Contadores da coorte encerrada ficam congelados em previous_closure. A coleta retomada inicia nova contagem a partir de zero.",
-    "real_money": "Permanece bloqueada permanentemente; inalterada por esta reabertura.",
-    "reason": "Coorte anterior foi encerrada em 2026-07-23 apos 2 de 30 dias, com o pipeline funcionando corretamente: 1923 cotacoes reais coletadas da Polymarket CLOB, com preco, spread, liquidez, observed_at/published_at distintos e hash do modelo. As 0 maturadas refletem tempo insuficiente, nao falha tecnica nem evidencia contra a hipotese. Decisao: retomar a coleta prospectiva para permitir que a amostra minima seja atingida.",
-    "scope": "Retomada de COLETA prospectiva apenas. Nao aprova a hipotese, nao emite gate, nao autoriza capital."
-  },
-  "schema_version": "cs-beyond-market-closure/1.0",
-  "scientific_status": "REOPENED_BY_HUMAN_DECISION",
-  "source_commit": "d63797ca0a7d18f12ebf69fb9a5cf20d4d23048c",
-  "supersedes_commit": "5e5e7b1f90a5819dbf8e5011446ad66561322d1e"
+  "source_commit": "d17eac6a0ea44b699b625da44844699836758a98"
 }

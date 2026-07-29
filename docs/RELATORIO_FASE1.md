@@ -8,6 +8,10 @@
 > foram rematerializados com autorização em 2026-07-16; veja
 > `RELATORIO_REMATERIALIZACAO_2026-07-16.md`.
 
+> **Nao usar como resultado canonico atual.** O replay precisa ser refeito
+> apos a correcao de 2026-07-29: o update Elo agora compara vencedor da serie
+> com P(vencer a serie), e nao com P(vencer um mapa).
+
 ## Fonte e dataset
 
 **HLTV de primeira mão**: o 403 da Fase 0 caiu com curl_cffi + impersonate

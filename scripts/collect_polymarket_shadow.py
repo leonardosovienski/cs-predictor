@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import json
 import os
+from datetime import datetime
 from pathlib import Path
 import sys
 
@@ -18,8 +19,13 @@ from src.predict import run as predict_match                 # noqa: E402
 
 
 def enrich_with_frozen_model(quote: dict, team_a: str, team_b: str) -> dict:
-    prediction = predict_match(team_a, team_b,
-                               fmt=quote.get("format") or "bo3", dry_run=True)
+    prediction = predict_match(
+        team_a, team_b, fmt=quote.get("format") or "bo3",
+        scheduled_start_at=(datetime.fromisoformat(
+            quote["scheduled_at"].replace("Z", "+00:00"))
+            if quote.get("scheduled_at") else None),
+        dry_run=True,
+    )
     ratings = ROOT / "data" / "ratings.json"
     if not ratings.exists():
         raise RuntimeError("data/ratings.json ausente; não há modelo vivido para congelar")

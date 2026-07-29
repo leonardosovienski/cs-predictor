@@ -235,7 +235,10 @@ class EloModel:
         fmt = infer_format(result_a, result_b, format)
         k = K_FACTORS[fmt]
         s_a = 1.0 if result_a > result_b else 0.0
-        e_a = win_probability(elo_a, elo_b)
+        # This entrypoint receives a series result, so its expected score must
+        # be P(A wins the series), derived from the latent map probability.
+        # Using P(A wins one map) here causes systematic BO3/BO5 rating drift.
+        e_a = series_win_prob(series_probs(win_probability(elo_a, elo_b), fmt))
         delta = k * (s_a - e_a)
         self.ratings[a] = elo_a + delta
         self.ratings[b] = elo_b - delta

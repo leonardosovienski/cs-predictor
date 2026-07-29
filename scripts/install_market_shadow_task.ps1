@@ -1,6 +1,7 @@
 param([switch]$RunNow)
 
 $ErrorActionPreference = "Stop"
+throw "cs-market-shadow is permanently disabled: COLLECTION_ONLY permits only cs-archival-collection."
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $pythonExe = Join-Path $projectRoot ".venv\Scripts\python.exe"
 $entrypoint = Join-Path $projectRoot "scripts\collect_polymarket_upcoming.py"

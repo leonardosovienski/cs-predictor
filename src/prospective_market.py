@@ -131,6 +131,7 @@ CREATE TABLE IF NOT EXISTS prospective_settlements (
 class ProspectiveStore:
     def __init__(self, path: str | Path): self.path = Path(path)
     def connect(self) -> sqlite3.Connection:
+        self._assert_open()
         self.path.parent.mkdir(parents=True, exist_ok=True)
         c = sqlite3.connect(self.path); c.execute("PRAGMA journal_mode=WAL"); c.execute("PRAGMA busy_timeout=5000")
         c.executescript(PROSPECTIVE_SCHEMA); return c

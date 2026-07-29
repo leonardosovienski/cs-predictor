@@ -78,7 +78,8 @@ def check_critical_files() -> None:
     env["PREDICTIONS_LOG_PATH"] = str(tmp / "cs_ci_smoke_pred.jsonl")
     env["PREDICTOR_EVENTS_PATH"] = str(tmp / "cs_ci_smoke_events.jsonl")
     r = subprocess.run([sys.executable, "-X", "utf8", "-m", "src.predict",
-                        "Vitality", "MOUZ", "--format", "bo3", "--json"],
+                        "Vitality", "MOUZ", "--format", "bo3",
+                        "--scheduled-start", "2030-01-01T12:00:00Z", "--json"],
                        cwd=ROOT, capture_output=True, text=True,
                        encoding="utf-8", errors="replace", env=env)
     if r.returncode != 0:

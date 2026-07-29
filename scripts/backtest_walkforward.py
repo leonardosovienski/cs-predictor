@@ -85,10 +85,11 @@ def run(cfg, conn):
             loss_m.append(-_ln(p_model if y == 0 else 1 - p_model))
             loss_b.append(-_ln(p_banda if y == 0 else 1 - p_banda))
 
-        # update por série, K do formato, expectativa POR MAPA (contrato do
-        # EloModel.update_ratings)
+        # Update por serie: observacao e expectativa usam a mesma unidade.
         k = K_FACTORS[fmt]
-        e_a = win_probability(ea, eb)
+        # The observed outcome is a series winner; use the corresponding
+        # series probability rather than the latent one-map probability.
+        e_a = p_model
         delta = k * ((1.0 if y == 0 else 0.0) - e_a)
         elo[a] = ea + delta
         elo[b] = eb - delta

@@ -62,10 +62,10 @@ def test_reabertura_exige_os_tres_campos_de_decisao(tmp_path):
             closure_record(path)
 
 
-def test_reabertura_completa_abre_a_coorte(tmp_path):
+def test_reabertura_completa_continua_bloqueada(tmp_path):
     reopened = _write(tmp_path / "reopened.json", _REOPENED)
-    assert_beyond_market_open(reopened)  # não levanta
-    assert closure_record(reopened)["scientific_status"] == "REOPENED_BY_HUMAN_DECISION"
+    with pytest.raises(BeyondMarketClosedError):
+        assert_beyond_market_open(reopened)
 
 
 def test_status_desconhecido_falha_fechado(tmp_path):
@@ -95,18 +95,13 @@ def test_store_de_producao_respeita_o_registro_default(tmp_path, monkeypatch):
                         _write(tmp_path / "closed.json", _CLOSED))
     monkeypatch.setattr(prospective_market, "is_production_market_db", lambda _p: True)
     store = ProspectiveStore(tmp_path / "market.db")
-    conn = store.connect()
-    try:
-        with pytest.raises(BeyondMarketClosedError):
-            store.import_quotes(conn, [], batch_id="blocked")
-    finally:
-        conn.close()
+    with pytest.raises(BeyondMarketClosedError):
+        store.connect()
 
 
 def test_registro_de_producao_e_valido_e_nunca_libera_capital():
     """Invariante que vale em QUALQUER estado científico, aberto ou fechado."""
     record = json.loads(PRODUCTION_RECORD.read_text(encoding="utf-8"))
-    assert record["scientific_status"] in {
-        "CLOSED_BY_HUMAN_DECISION", "REOPENED_BY_HUMAN_DECISION"}
+    assert record["scientific_status"] == "CLOSED_BY_HUMAN_DECISION"
     assert record["operational_status"] == "NO_GO"
     closure_record()  # registro de produção é aceito pelo contrato

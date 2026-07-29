@@ -1,5 +1,9 @@
 # Sports DB, Market DB e Beyond Market
 
+> **Estado canonico:** `market.db` e seu lifecycle estao preservados apenas
+> como evidencia historica. O repositorio opera em COLLECTION_ONLY: nenhuma
+> mutacao, coleta, importacao, settlement ou avaliacao Beyond Market e aceita.
+
 ## Separação obrigatória
 
 `data/cs.db` é o **Sports DB**: séries e mapas HLTV que medem capacidade
