@@ -50,9 +50,10 @@ jobs:
 
       - name: Executar Testes
         # ==============================================================================================
-        # MOTIVO DO IGNORE E DO "|| true": O ambiente do GitHub Actions é limpo e não possui a pasta data/ 
-        # (banco de dados, ratings, etc.), pois eles estão no .gitignore. Para a esteira não quebrar
-        # por falta de dados locais e destravar o seu CI, estamos forçando o sucesso com "|| true".
+        # MOTIVO DO IGNORE: o runner do GitHub Actions é limpo e não tem os artefatos operacionais
+        # de data/ (gitignored). Os testes que dependem deles fazem skip explícito, então a esteira
+        # roda honesta: falha de teste reprova o pipeline. (O comentário antigo descrevia um
+        # "|| true" que este comando não tem — a esteira daqui já era honesta.)
         # ==============================================================================================
         run: |
           PYTHONPATH=.:vendor:core:tools python -m pytest -v \
