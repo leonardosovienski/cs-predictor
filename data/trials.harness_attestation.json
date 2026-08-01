@@ -1,7 +1,7 @@
 {
   "schema_version": "pipeline-power/2",
-  "passed_at": "2026-08-01T05:23:16+00:00",
-  "expires_at": "2026-08-08T05:23:16+00:00",
+  "passed_at": "2026-08-01T05:31:14+00:00",
+  "expires_at": "2026-08-08T05:31:14+00:00",
   "core_version": "2.0.1-ga-20260731",
   "evaluate": "evaluate",
   "edge_verdict": "COMPROVADA",

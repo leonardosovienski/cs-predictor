@@ -78,22 +78,35 @@ def main():
     print(f"controle positivo OK — atestado em {att.name} ({record['passed_at']})")
 
     reg = TrialRegistry(TRIALS)
-    reg.register(
-        "h1-cs-elo-serie-prequential",
-        params={"model": "elo-mapa+combinatoria-serie",
-                "k_factors": {"bo1": 32, "bo3": 40, "bo5": 48},
-                "seed": "hltv-top30-2026-07-06-linear",
-                "default_seed_elo": 1400, "burnin_days": 90,
-                "min_team_matches": 10,
-                "baseline": "elo-semente-congelado (ranking HLTV)",
-                "source": "hltv /results (todas as tiers)",
-                "period": "2024-12..2026-07"},
-        sharpe=None,
-        notes="H1-CS: Elo por mapa atualizado por série (K por formato) "
-              "prevê o vencedor da série melhor que o ranking-semente "
-              "congelado. COMPROVADA = Brier menor E Diebold-Mariano p<0.05 "
-              "sobre log-loss. Métrica probabilística (sem odds na Fase 1a).",
-        test_period=["2024-12-22", "2026-07-11"])
+    H1_NAME = "h1-cs-elo-serie-prequential"
+    if any(t.get("name") == H1_NAME for t in reg.load()):
+        # Este script roda de novo só para renovar o atestado (expira em 7
+        # dias); H1 já foi pré-registrada em 2026-07-11 e já tem RESULTADO
+        # gravado em `notes` por um backtest real. Re-chamar reg.register
+        # aqui reescreveria essas notes com o texto de pré-registro abaixo,
+        # apagando o resultado em silêncio — exatamente o "esquecimento
+        # seletivo" que a governança N+1 existe para impedir. Pré-registro é
+        # ação de UMA VEZ; atualizar H1 com resultado novo é responsabilidade
+        # de quem roda o backtest, não deste script.
+        print(f"pré-registro de {H1_NAME} já existe — não regravado "
+              "(evita apagar RESULTADO já registrado)")
+    else:
+        reg.register(
+            H1_NAME,
+            params={"model": "elo-mapa+combinatoria-serie",
+                    "k_factors": {"bo1": 32, "bo3": 40, "bo5": 48},
+                    "seed": "hltv-top30-2026-07-06-linear",
+                    "default_seed_elo": 1400, "burnin_days": 90,
+                    "min_team_matches": 10,
+                    "baseline": "elo-semente-congelado (ranking HLTV)",
+                    "source": "hltv /results (todas as tiers)",
+                    "period": "2024-12..2026-07"},
+            sharpe=None,
+            notes="H1-CS: Elo por mapa atualizado por série (K por formato) "
+                  "prevê o vencedor da série melhor que o ranking-semente "
+                  "congelado. COMPROVADA = Brier menor E Diebold-Mariano p<0.05 "
+                  "sobre log-loss. Métrica probabilística (sem odds na Fase 1a).",
+            test_period=["2024-12-22", "2026-07-11"])
     errs = reg.validate()
     if errs:
         sys.exit("schema de trials violado: " + "; ".join(errs))
