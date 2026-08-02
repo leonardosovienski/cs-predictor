@@ -1,60 +1,74 @@
-name: CI Pipeline
-
+name: CI
 on:
   push:
-    branches: [ "main" ]
   pull_request:
-    branches: [ "main" ]
-
+permissions:
+  contents: read
 jobs:
-  validate:
-    name: Lint & Test
+  quality:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.13", "3.14"]
+        include:
+          - python: "3.14"
+            experimental: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.15"
+      - run: uv python install ${{ matrix.python }}
+      - run: uv sync --frozen --extra dev
+      - run: uv run ruff check src/cli.py src/event_store.py src/observability.py src/plugin.py src/scheduler.py src/services.py src/settings.py src/transports.py src/upstream.py
+      - run: uv run ruff format --check src/cli.py src/event_store.py src/observability.py src/plugin.py src/scheduler.py src/services.py src/settings.py src/transports.py src/upstream.py
+      - run: uv run pyright
+      - run: uv run pytest -W error::ResourceWarning --cov=src --cov-branch --cov-report=term-missing --cov-report=xml:coverage-global.xml
+      - name: homologated runtime coverage
+        run: uv run pytest --cov=src.archival_collection --cov=src.beyond_market_closure --cov=src.cli --cov=src.data.hltv_provider --cov=src.event_store --cov=src.observability --cov=src.plugin --cov=src.scheduler --cov=src.services --cov=src.settings --cov=src.transports --cov=src.upstream --cov-branch --cov-fail-under=80 --cov-report=term
+      - name: new code coverage
+        run: uv run pytest tests/test_modernization_contracts.py tests/test_hltv_resilience.py tests/test_market_shadow_governance.py tests/test_scheduler.py tests/test_database_isolation.py tests/test_supply_chain.py --cov=src.cli --cov=src.event_store --cov=src.observability --cov=src.plugin --cov=src.scheduler --cov=src.services --cov=src.settings --cov=src.transports --cov=src.upstream --cov-branch --cov-fail-under=80 --cov-report=term
+      - run: uv build
+      - name: wheel smoke outside checkout
+        run: |
+          python -m venv /tmp/cs-wheel
+          /tmp/cs-wheel/bin/pip install --find-links wheelhouse dist/*.whl
+          cd /tmp
+          /tmp/cs-wheel/bin/cs-predictor health
+          /tmp/cs-wheel/bin/cs-scheduler --validate
+      - name: audit delivered runtime
+        run: uv run pip-audit --path /tmp/cs-wheel/lib/python${{ matrix.python }}/site-packages
+      - name: runtime SBOM
+        run: uv run cyclonedx-py environment /tmp/cs-wheel/bin/python --output-format JSON --output-file sbom-python.cdx.json
+  container:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code (Projeto Atual)
-        uses: actions/checkout@v4
-
-      - name: Clonar Tools Predictor (Dependência)
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - run: docker build -t cs-predictor:test .
+      - run: docker run --rm --read-only --tmpfs /tmp cs-predictor:test health
+      - name: portable scheduler in read-only container
+        run: docker run --rm --read-only --tmpfs /tmp -v "$PWD/data/fixtures/upstream_events.example.json:/input.json:ro" -e CS_UPSTREAM_FILE=/input.json -e CS_ARCHIVE_PATH=/tmp/archive.jsonl -e CS_SCHEDULER_RUNTIME_DIR=/tmp/runtime cs-predictor:test scheduler
+      - uses: anchore/sbom-action@v0
         with:
-          repository: leonardosovienski/tools-predictor
-          path: tools
-
-      - name: Clonar Core Predictor (Dependência)
-        uses: actions/checkout@v4
+          image: cs-predictor:test
+          format: spdx-json
+          output-file: sbom-image.spdx.json
+      - uses: aquasecurity/trivy-action@0.28.0
         with:
-          repository: leonardosovienski/core-predictor
-          path: core
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
+          image-ref: cs-predictor:test
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: "1"
+      - uses: actions/upload-artifact@v4
         with:
-          python-version: '3.13'
-          # Cache removido propositalmente para evitar erro de arquivo inexistente
-
-      - name: Instalar Dependências
-        run: |
-          python -m pip install --upgrade pip
-          pip install pytest 
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
-
-      - name: Simular Workspace Local (sys.path)
-        run: |
-          if [ -f pyproject.toml ]; then
-            PACKAGE_NAME=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb')).get('project', {}).get('name', ''))")
-            if [ -n "$PACKAGE_NAME" ]; then
-              ln -sfn $(pwd) ../$PACKAGE_NAME
-            fi
-          fi
-
-      - name: Executar Testes
-        # ==============================================================================================
-        # MOTIVO DO IGNORE: o runner do GitHub Actions é limpo e não tem os artefatos operacionais
-        # de data/ (gitignored). Os testes que dependem deles fazem skip explícito, então a esteira
-        # roda honesta: falha de teste reprova o pipeline. (O comentário antigo descrevia um
-        # "|| true" que este comando não tem — a esteira daqui já era honesta.)
-        # ==============================================================================================
-        run: |
-          PYTHONPATH=.:vendor:core:tools python -m pytest -v \
-            --ignore=tests/test_weekly_download.py
+          name: supply-chain-artifacts
+          path: |
+            sbom-image.spdx.json
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2

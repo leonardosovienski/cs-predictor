@@ -66,14 +66,9 @@ def create_backup(destination: Path, *, root: Path = ROOT) -> Path:
             raise BackupError("data/cs.db ausente")
         _copy_sqlite_snapshot(source_db, data / "cs.db")
         for name in ("ratings.json", "ratings_maps.json", "calibration_platt.json",
-                     "predictions.jsonl", "market_shadow.jsonl",
-                     "sports_market_migration_report.json"):
+                     "predictions.jsonl"):
             _copy_if_file(root / "data" / name, data / name)
-        market_db = root / "data" / "market.db"
-        if market_db.is_file():
-            _copy_sqlite_snapshot(market_db, data / "market.db")
-        for name in ("config.yaml", "data/teams_cs.json",
-                     "vendor/predictor_core/VERSION", "vendor/predictor_core/CORE_MANIFEST.json"):
+        for name in ("config.yaml", "data/teams_cs.json"):
             _copy_if_file(root / name, temporary / name)
         snapshots = root / "snapshots"
         if snapshots.is_dir():

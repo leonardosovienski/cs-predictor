@@ -1,0 +1,56 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cs-predictor"
+version = "2.0.0"
+description = "CS2 prediction, ingestion, settlement and archival collection domain"
+readme = "README.md"
+requires-python = ">=3.13,<3.15"
+dependencies = [
+  "curl-cffi>=0.13,<1", "httpx>=0.28,<1", "numpy>=2.2,<3", "pandas>=2.2,<4",
+  "predictor-core>=2.1,<3", "predictor-ops>=2.0.1,<3", "pydantic>=2.11,<3",
+  "pydantic-settings>=2.10,<3", "pyyaml>=6,<7", "scipy>=1.15,<2",
+]
+[project.optional-dependencies]
+object-storage = ["boto3>=1.40,<2"]
+queue = ["redis>=6,<7"]
+otel = ["opentelemetry-api>=1.36,<2", "opentelemetry-sdk>=1.36,<2", "opentelemetry-exporter-otlp-proto-http>=1.36,<2"]
+dev = ["build>=1.3,<2", "coverage[toml]>=7.10,<8", "cyclonedx-bom>=7.1,<8", "pip-audit>=2.9,<3", "pre-commit>=4.3,<5", "pyright>=1.1.404,<2", "pytest>=8.4,<10", "pytest-cov>=6.2,<8", "ruff>=0.12,<1"]
+[project.entry-points."predictor.plugins"]
+cs = "src.plugin:CsPredictorPlugin"
+[project.scripts]
+cs-predictor = "src.cli:main"
+cs-predict = "src.predict:main"
+cs-collect = "src.cli:collect_main"
+cs-ingest-hltv = "src.cli:ingest_main"
+cs-settle = "src.cli:settle_main"
+cs-scheduler = "src.scheduler:main"
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers --strict-config"
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+exclude = ["docs/evidence"]
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP", "B"]
+[tool.pyright]
+pythonVersion = "3.13"
+include = ["src/cli.py", "src/event_store.py", "src/observability.py", "src/plugin.py", "src/scheduler.py", "src/services.py", "src/settings.py", "src/transports.py", "src/upstream.py"]
+typeCheckingMode = "basic"
+reportCallIssue = false
+[tool.coverage.run]
+source = ["src"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+
+[tool.uv.sources]
+predictor-core = { path = "wheelhouse/predictor_core-2.1.0-py3-none-any.whl" }
+predictor-ops = { path = "wheelhouse/predictor_ops-2.0.1-py3-none-any.whl" }

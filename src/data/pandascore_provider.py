@@ -8,7 +8,6 @@ from typing import Any, Callable
 import urllib.parse
 import urllib.request
 
-from .. import config  # noqa: F401  (activate vendored core)
 from predictor_core.data.contracts import DataUnavailableError
 
 BASE = "https://api.pandascore.co"

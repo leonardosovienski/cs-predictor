@@ -17,7 +17,7 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from .config import ROOT, load_config           # injeta vendor/ no sys.path
+from .config import ROOT, load_config
 from .model import FORMAT_HOURS, EloModel, cover_probability
 from .model_maps import MapEloModel, predict_series_with_maps
 

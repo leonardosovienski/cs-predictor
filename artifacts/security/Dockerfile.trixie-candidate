@@ -1,0 +1,25 @@
+FROM python:3.13-slim-trixie@sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91 AS builder
+WORKDIR /build
+COPY pyproject.toml README.md ./
+COPY wheelhouse ./wheelhouse
+COPY src ./src
+RUN python -m pip install --no-cache-dir build \
+    && python -m build --wheel \
+    && python -m venv /opt/venv \
+    && /opt/venv/bin/pip install --no-cache-dir --find-links /build/wheelhouse /build/dist/*.whl \
+    && /opt/venv/bin/python -m pip uninstall --yes pip \
+    && rm -rf /root/.cache /tmp/*
+
+FROM python:3.13-slim-trixie@sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91
+ENV PATH=/opt/venv/bin:$PATH PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+RUN groupadd --system app && useradd --system --gid app --home-dir /app app \
+    && python -m pip uninstall --yes pip \
+    && rm -rf /root/.cache /tmp/* /var/lib/apt/lists/*
+WORKDIR /app
+COPY --from=builder /opt/venv /opt/venv
+COPY config.yaml ./config.yaml
+COPY data/teams_cs.json ./data/teams_cs.json
+USER app
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD ["cs-predictor", "health"]
+ENTRYPOINT ["cs-predictor"]
+CMD ["health"]

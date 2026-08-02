@@ -1,38 +1,18 @@
-{
-  "events": [
-    {
-      "source": "example-exporter",
-      "source_record_id": "EXAMPLE-0001",
-      "scheduled_at": "2026-07-26T18:00:00Z",
-      "team_a": "Example Alpha",
-      "team_b": "Example Bravo",
-      "competition": "Example Invitational 2026",
-      "format": "bo3",
-      "scope": "series"
+[
+  {
+    "schema_version": "cs.upstream-event/1.0",
+    "event_id": "cs2-3c479667686b4fcc5609f2b4316e4a81",
+    "observed_at": "2026-08-01T00:00:00Z",
+    "available_at": "2026-08-01T00:00:00Z",
+    "content_hash": "sha256:96bae9abd1a756e2fa6d4f49e87991720f8c64a0a6f747ec9d6141315ba19150",
+    "idempotency_key": "cs-upstream-v1:878fe1887fdfbf0090f779b04d19cdd3f26c8e22052d1ea80620deb7a2422118",
+    "provenance": {
+      "source": "fixture",
+      "source_record_id": "example-1",
+      "source_uri": null,
+      "collector": "fixture",
+      "collector_version": "1.0"
     },
-    {
-      "source": "example-exporter",
-      "source_record_id": "EXAMPLE-0002",
-      "scheduled_at": "2026-07-24T15:00:00Z",
-      "team_a": "Example Alpha Academy",
-      "team_b": "Example Charlie",
-      "competition": "Example Academy Series 2026",
-      "format": "bo1",
-      "scope": "series"
-    },
-    {
-      "source": "example-exporter",
-      "source_record_id": "EXAMPLE-0003",
-      "scheduled_at": "2026-07-23T12:00:00Z",
-      "team_a": "Example Bravo",
-      "team_b": "Example Charlie",
-      "competition": "Example Invitational 2026",
-      "format": "bo5",
-      "scope": "series",
-      "official_result": {
-        "winner": "Example Bravo",
-        "validated_at": "2026-07-23T16:45:00Z"
-      }
-    }
-  ]
-}
+    "payload": {"team_a": "Vitality", "team_b": "MOUZ", "format": "bo3"}
+  }
+]

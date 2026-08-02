@@ -1,5 +1,27 @@
 # cs-predictor
 
+## Runtime moderno
+
+O projeto é um pacote Python 3.13 instalado com `uv`; Python 3.14 permanece
+experimental. `predictor-core 2.1.0` e `predictor-ops 2.0.1` são consumidos
+como wheels em `wheelhouse/`, sem vendor, `PYTHONPATH`, `sys.path` ou checkout
+irmão.
+
+```bash
+uv sync --frozen --extra dev
+uv run pytest
+uv run cs-predictor health
+uv run cs-collect --input data/fixtures/upstream_events.example.json
+uv run cs-scheduler --validate
+uv run cs-scheduler
+uv build
+```
+
+O contrato arquivístico formal está em
+`schemas/upstream-event-v1.schema.json`; detalhes de transportes, isolamento
+Sports DB/Market DB, scheduler portátil, migração e incompatibilidade dos
+contratos comuns estão em `docs/MODERNIZATION.md`.
+
 > **Estado operacional canonico (2026-07-29): COLLECTION_ONLY.** Beyond
 > Market esta permanentemente fechado; `cs-market-shadow`, coleta de odds,
 > importacao, settlement e avaliacao de mercado nao sao operacoes permitidas.
@@ -64,14 +86,17 @@ telemetria (domínio `cs`).
 ```
 config.yaml                 # game, formato default, K base, banca
 src/
-  config.py                 # load_config/load_teams/resolve_team (+vendor no path)
+  config.py                 # scientific config and team identity
+  settings.py               # typed operational settings
+  plugin.py                 # canonical predictor.plugins entry point
+  services.py               # prediction/ingestion/settlement/archival services
   model.py                  # EloModel (predict_match/predict_handicap/update_ratings)
   predict.py                # CLI de serving + PredictionPoint + telemetria
   data/hltv_provider.py     # stub HLTV (403 a cliente simples; Fase 1 decide a via)
 data/teams_cs.json          # HLTV Top 30 (2026-07-06) com Elo semente
 scripts/ci_check.py         # 3 barreiras: pytest, .ps1 ASCII, parse+smoke
 tests/                      # suíte completa (modelo, serving, backup, core, identidade hostil)
-vendor/predictor_core/      # v1.3.1 via sync_core (NÃO editar à mão)
+wheelhouse/                 # immutable predictor-core/predictor-ops wheels
 ```
 
 ### Backup e restauração
@@ -103,11 +128,11 @@ usa `operational_runner`, runtime externo e nunca consulta mercados/apostas.
 
 ```powershell
 # Unica automacao permitida:
-powershell -File scripts/install_archival_collection_task.ps1
+sudo systemctl enable --now cs-archival-collection.timer
 ```
 
 Esses comandos sao historicos e nao devem ser executados. O instalador
-`scripts/install_market_shadow_task.ps1` falha explicitamente para impedir que
+O instalador histórico, preservado sob `docs/evidence/market_shadow`, falha para impedir que
 `cs-market-shadow` seja recriado; use somente `cs-archival-collection`.
 
 O coletor aceita apenas um ID Gamma explícito, exige moneyline com identidade
@@ -115,7 +140,7 @@ exata e instante PRE_EVENT, consulta somente Gamma/CLOB públicos e grava em
 `data/market_shadow.jsonl`. Não existe caminho de ordem ou trading no projeto.
 
 Nao instale nem execute qualquer coletor de mercado. O instalador legado
-`install_market_shadow_task.ps1` aborta deliberadamente; os entrypoints de
+O instalador legado aborta deliberadamente; os entrypoints de
 Polymarket permanecem apenas como evidencia historica bloqueada.
 
 O backtest auxiliar abaixo usa mercados encerrados e o histórico oficial de
@@ -141,7 +166,7 @@ Para materializar a coorte prospectiva com backup e relatório:
 
 ```powershell
 python scripts/migrate_prospective_market.py --backup-dir backups/sports-market-AAAAMMDD
-python scripts/market_shadow_status.py
+# removido do runtime; evidência em docs/evidence/market_shadow/
 ```
 
 `EVENT_TIME_PASSED` não significa resultado maturado: sem mapping aceito,

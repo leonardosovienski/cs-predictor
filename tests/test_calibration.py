@@ -66,8 +66,7 @@ def test_serving_aplica_platt_quando_materializado(tmp_path):
     o predict_match reporta o modelo calibrado e preserva a prob crua."""
     m = EloModel(ratings_file=tmp_path / "r.json")
     r = m.predict_match("Vitality", "MOUZ", "bo3")
-    if m.platt is None:
-        pytest.skip("calibration_platt.json ausente neste checkout")
+    assert m.platt is not None, "versioned calibration fixture is required"
     assert r["model"] == "elo-platt-fase1"
     assert "prob_team_a_raw" in r
     # a<1: prob calibrada é MENOS extrema que a crua

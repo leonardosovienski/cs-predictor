@@ -7,7 +7,6 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
 
 from src.contextual_bo3 import ContextError, predict_contextual_bo3  # noqa: E402
 from src.model import EloModel  # noqa: E402

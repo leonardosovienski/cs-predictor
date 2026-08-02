@@ -1,0 +1,15 @@
+[Unit]
+Description=CS archival collection
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=cs-predictor
+Group=cs-predictor
+WorkingDirectory=/var/lib/cs-predictor
+EnvironmentFile=-/etc/cs-predictor/env
+ExecStart=/opt/cs-predictor/bin/cs-scheduler
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/cs-predictor

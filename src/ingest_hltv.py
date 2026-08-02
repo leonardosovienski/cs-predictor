@@ -19,7 +19,7 @@ from .config import ROOT, load_config
 def run(until_date: str) -> None:
     from .data.hltv_provider import HltvProvider
     cfg = load_config()
-    provider = HltvProvider(delay=cfg.get("hltv", {}).get("scraper_delay"))
+    provider = HltvProvider()
     conn = db.connect(str(ROOT / cfg.get("database", "data/cs.db")))
 
     total = 0

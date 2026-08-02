@@ -1,0 +1,8 @@
+.git
+.venv
+docs
+tests
+snapshots
+data/cache
+data/*.db
+data/*.jsonl
