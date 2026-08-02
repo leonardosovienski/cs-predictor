@@ -32,6 +32,7 @@ def test_declarative_job_and_manual_execution_without_systemd(tmp_path, capsys):
     terminal = json.loads((root / "events.jsonl").read_text(encoding="utf-8").splitlines()[-1])
     assert heartbeat["finished_at"] and terminal["run_id"] == result.run_id
     assert heartbeat["status"] == "COLLECTION_ONLY"
+    capsys.readouterr()
     assert main(["--validate"]) == 0
     assert json.loads(capsys.readouterr().out)["valid"] is True
 
