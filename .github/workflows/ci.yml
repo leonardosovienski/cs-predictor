@@ -32,7 +32,7 @@ jobs:
       - run: uv build
       - name: wheel smoke outside checkout
         run: |
-          python -m venv /tmp/cs-wheel
+          uv venv /tmp/cs-wheel --python ${{ matrix.python }} --seed
           /tmp/cs-wheel/bin/pip install dist/*.whl \
             "predictor-core @ https://github.com/leonardosovienski/core-predictor/releases/download/v2.1.0/predictor_core-2.1.0-py3-none-any.whl" \
             "predictor-ops @ https://github.com/leonardosovienski/tools-predictor/releases/download/v2.0.1/predictor_ops-2.0.1-py3-none-any.whl"
