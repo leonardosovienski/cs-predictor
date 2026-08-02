@@ -27,8 +27,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT / "vendor"))
 
 from src import db                                     # noqa: E402
 from src.config import load_config                     # noqa: E402

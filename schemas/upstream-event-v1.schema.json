@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://predictor.local/schemas/cs/upstream-event-v1.schema.json",
+  "title": "CS upstream event v1",
+  "type": "object",
+  "required": ["schema_version", "event_id", "observed_at", "available_at", "content_hash", "idempotency_key", "provenance", "payload"],
+  "properties": {
+    "schema_version": {"const": "cs.upstream-event/1.0"},
+    "event_id": {"type": "string", "pattern": "^cs2-[a-f0-9]{32}$"},
+    "observed_at": {"type": "string", "format": "date-time"},
+    "available_at": {"type": "string", "format": "date-time"},
+    "content_hash": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+    "idempotency_key": {"type": "string", "pattern": "^cs-upstream-v1:[a-f0-9]{64}$"},
+    "provenance": {"type": "object"},
+    "payload": {"type": "object"}
+  },
+  "additionalProperties": false
+}

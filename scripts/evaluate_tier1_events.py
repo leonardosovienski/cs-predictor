@@ -17,7 +17,6 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
 
 from src.config import load_config  # noqa: E402
 from src.model import K_FACTORS, infer_format, series_probs, win_probability  # noqa: E402

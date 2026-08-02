@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 import hashlib
+from importlib.metadata import version
 import json
 from pathlib import Path
 import subprocess
@@ -11,7 +12,6 @@ from typing import Any
 import unicodedata
 import uuid
 
-from . import config  # noqa: F401 -- injeta vendor/predictor_core no sys.path
 from predictor_core.contracts.collection import CollectionArchive, LifecycleState, ObservationEnvelope
 
 # `pythonw.exe` (executavel de toda tarefa agendada) nao tem console: um
@@ -101,7 +101,7 @@ class ArchivalCollection:
                 envelope = ObservationEnvelope(collection_run_id=run["collection_run_id"], project="cs-predictor", domain="cs2",
                     canonical_event_id=event_id, observed_at=observed, scheduled_at=_utc(row["scheduled_at"]), source=row["source"],
                     source_record_id=str(row["source_record_id"]), provenance_hash=source_hash, source_snapshot_hash=snapshot,
-                    code_commit=_commit(), core_version=(ROOT / "vendor/predictor_core/VERSION").read_text().strip(),
+                    code_commit=_commit(), core_version=version("predictor-core"),
                     participants={"team_a": row["team_a"], "team_a_id": _team_id(row["team_a"]), "team_b": row["team_b"], "team_b_id": _team_id(row["team_b"]), "scope": "series"},
                     competition={"name": row["competition"], "format": row["format"]})
                 current = self._latest(run["collection_run_id"], event_id)

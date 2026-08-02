@@ -1,0 +1,10 @@
+title = "cs-predictor Gitleaks policy"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Historical vendor manifest SHA-256 misclassified as an API key"
+commits = ["c743ed0b2fa5d64277dfd3cfaba8c97306301801"]
+paths = ['''vendor/predictor_core/CORE_MANIFEST\.json''']
+regexes = ['''"testing/secrets\.py": "[0-9a-f]{64}"''']

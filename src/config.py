@@ -1,23 +1,17 @@
-"""Configuração do cs-predictor — carrega config.yaml e resolve paths.
-
-Mesmo padrão do nba-predictor: YAML na raiz é a única fonte de parâmetros;
-vendor/ entra no sys.path aqui — todo entrypoint importa src.config primeiro
-e ganha `import predictor_core` de graça.
-"""
+"""Scientific YAML configuration and team identity resolution."""
 import json
-import sys
+import os
 import unicodedata
 from functools import lru_cache
 from pathlib import Path
 
 import yaml
 
-ROOT = Path(__file__).resolve().parent.parent
-_VENDOR = ROOT / "vendor"
-if str(_VENDOR) not in sys.path:
-    sys.path.insert(0, str(_VENDOR))
-
-
+_PACKAGE_ROOT = Path(__file__).resolve().parent
+_CHECKOUT_ROOT = _PACKAGE_ROOT.parent
+ROOT = Path(os.environ["CS_PROJECT_ROOT"]).resolve() if "CS_PROJECT_ROOT" in os.environ else (
+    _CHECKOUT_ROOT if (_CHECKOUT_ROOT / "config.yaml").is_file() else _PACKAGE_ROOT
+)
 @lru_cache(maxsize=1)
 def load_config() -> dict:
     with open(ROOT / "config.yaml", encoding="utf-8") as f:

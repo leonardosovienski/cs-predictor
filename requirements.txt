@@ -1,7 +1,0 @@
-pandas
-numpy
-scipy
-pydantic
-httpx
-pyyaml
-curl_cffi   # src/data/hltv_provider.py — importado na carga do módulo

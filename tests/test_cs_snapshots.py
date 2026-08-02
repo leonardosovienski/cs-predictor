@@ -34,9 +34,6 @@ def _runtime_root(path: Path) -> Path:
     (data / "calibration_platt.json").write_text('{"a": 1.0, "b": 0.0}', encoding="utf-8")
     shutil.copy2(ROOT / "config.yaml", path / "config.yaml")
     shutil.copy2(ROOT / "data" / "teams_cs.json", data / "teams_cs.json")
-    vendor = path / "vendor" / "predictor_core"; vendor.mkdir(parents=True)
-    for name in ("VERSION", "CORE_MANIFEST.json"):
-        shutil.copy2(ROOT / "vendor" / "predictor_core" / name, vendor / name)
     return path
 
 

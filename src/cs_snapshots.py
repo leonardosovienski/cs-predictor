@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timedelta, timezone
 import hashlib
+from importlib.metadata import distribution, version
 import json
 import os
 from pathlib import Path
@@ -73,21 +74,18 @@ def _git(root: Path, *args: str) -> str:
 
 
 def _tools_provenance() -> dict[str, Any]:
-    workspace = ROOT.parent
-    if str(workspace) not in sys.path:
-        sys.path.insert(0, str(workspace))
     try:
-        from tools.tools_provenance import collect_tools_provenance
-        return collect_tools_provenance(workspace / "tools", strict=True)
+        from predictor_ops.provenance import collect_provenance
+        return collect_provenance(strict=True)
     except (ImportError, OSError, RuntimeError) as exc:
         raise SnapshotError(f"tools provenance strict indisponível: {exc}") from exc
 
 
 def _core_identity(root: Path) -> dict[str, str]:
-    vendor = root / "vendor" / "predictor_core"
-    version = vendor / "VERSION"
-    return {"version": version.read_text(encoding="utf-8").strip(),
-            "hash": _hash_file(vendor / "CORE_MANIFEST.json")}
+    del root
+    dist = distribution("predictor-core")
+    record = next(item for item in (dist.files or []) if item.name == "RECORD")
+    return {"version": version("predictor-core"), "hash": _hash_file(Path(dist.locate_file(record)))}
 
 
 def _resolve(model: EloModel, requested: str) -> dict[str, Any]:

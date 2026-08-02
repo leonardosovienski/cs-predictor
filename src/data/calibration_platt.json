@@ -1,0 +1,8 @@
+{
+  "a": 0.662721,
+  "b": 0.0,
+  "fitted_on": 10699,
+  "brier_raw": 0.4602,
+  "brier_cal": 0.4538,
+  "trial": "h2-cs-elo-platt-symmetric-prequential"
+}

@@ -1,5 +1,10 @@
 # HANDOFF.md — cs-predictor
 
+> **Atualização 2026-08-01:** este handoff histórico foi superado pela
+> modernização descrita em `docs/MODERNIZATION.md`. Vendor, imports de workspace,
+> Task Scheduler e runtime de market shadow não fazem mais parte do pacote.
+> `CLOSED_BY_HUMAN_DECISION` e a evidência histórica foram preservados.
+
 > ## ENCERRAMENTO PROSPECTIVO BEYOND MARKET (2026-07-23)
 >
 > Decisao humana: `CLOSED_BY_HUMAN_DECISION`; status operacional: `NO_GO`.

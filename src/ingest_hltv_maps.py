@@ -25,7 +25,7 @@ from .config import ROOT, load_config
 def run(limit: int | None = None, teams: list[str] | None = None) -> None:
     from .data.hltv_provider import HltvProvider
     cfg = load_config()
-    provider = HltvProvider(delay=cfg.get("hltv", {}).get("scraper_delay"))
+    provider = HltvProvider()
     conn = db.connect(str(ROOT / cfg.get("database", "data/cs.db")))
 
     pending = db.match_ids_missing_maps(conn, teams=teams)
