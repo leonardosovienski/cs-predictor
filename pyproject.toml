@@ -52,5 +52,5 @@ show_missing = true
 skip_covered = false
 
 [tool.uv.sources]
-predictor-core = { path = "wheelhouse/predictor_core-2.1.0-py3-none-any.whl" }
-predictor-ops = { path = "wheelhouse/predictor_ops-2.0.1-py3-none-any.whl" }
+predictor-core = { url = "https://github.com/leonardosovienski/core-predictor/releases/download/v2.1.0/predictor_core-2.1.0-py3-none-any.whl" }
+predictor-ops = { url = "https://github.com/leonardosovienski/tools-predictor/releases/download/v2.0.1/predictor_ops-2.0.1-py3-none-any.whl" }

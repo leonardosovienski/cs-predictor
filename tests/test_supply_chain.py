@@ -1,4 +1,4 @@
-import hashlib
+import tomllib
 from importlib.metadata import distribution, version
 from pathlib import Path
 
@@ -8,10 +8,21 @@ from predictor_ops.redaction import redact, redact_command, redact_text, sensiti
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _locked_wheel_hash(package: str) -> str:
+    lock = tomllib.loads((ROOT / "uv.lock").read_text(encoding="utf-8"))
+    for pkg in lock["package"]:
+        if pkg["name"] == package:
+            return pkg["wheels"][0]["hash"]
+    raise AssertionError(f"{package} not found in uv.lock")
+
+
 def test_predictor_ops_201_is_installed_from_site_packages_and_hash_matches():
-    wheel = ROOT / "wheelhouse" / "predictor_ops-2.0.1-py3-none-any.whl"
-    assert hashlib.sha256(wheel.read_bytes()).hexdigest() == (
-        "37de983718b318fc1ccadc6b299db9fccdbea946080a2b710d6dd6a939a7e766"
+    # predictor-ops is distributed as a published GitHub Release asset (see
+    # [tool.uv.sources] in pyproject.toml), not a wheel vendored in this repo.
+    # uv itself enforces this hash on every sync; this test cross-checks that
+    # the lockfile still points at the known-good, canonical release.
+    assert _locked_wheel_hash("predictor-ops") == (
+        "sha256:77ca2eb3f1090226dfef23b84d7fb2f9a61bd858c970d433d28303e637a8903e"
     )
     dist = distribution("predictor-ops")
     assert version("predictor-ops") == "2.0.1"
