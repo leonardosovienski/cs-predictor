@@ -15,6 +15,7 @@ from .transports import FileTransport
 
 class CsPredictorPlugin:
     name = "cs"
+    domain = "cs"
     version = "2.0.0"
 
     def __init__(self, settings: Settings | None = None):
@@ -42,6 +43,18 @@ class CsPredictorPlugin:
 
     def capabilities(self) -> dict[str, Any]:
         return {
+            # Canonical gateway contract.
+            "domain": self.domain,
+            "supports_prediction": True,
+            "supports_collection": True,
+            "supports_settlement": True,
+            "extra": {
+                "collection_modes": ["file", "object-storage", "queue"],
+                "settlement": "sports-only",
+                "market_shadow": False,
+                "trading": False,
+            },
+            # Backward-compatible fields used by the domain's existing CLI/tests.
             "prediction": True,
             "collection": ["file", "object-storage", "queue"],
             "settlement": "sports-only",
@@ -74,11 +87,17 @@ class CsPredictorPlugin:
         }
 
     def health(self) -> dict[str, Any]:
-        return {
-            "status": "SUCCEEDED",
-            "domain": "cs",
+        details = {
             "collection_only": True,
             "scientific_status": "CLOSED_BY_HUMAN_DECISION",
             "capabilities": self.capabilities(),
             "metrics": metrics(),
+        }
+        return {
+            "status": "SUCCEEDED",
+            "domain": self.domain,
+            "version": self.version,
+            "details": details,
+            # Preserve the legacy health payload for existing consumers.
+            **details,
         }
