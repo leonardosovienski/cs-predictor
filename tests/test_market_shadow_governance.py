@@ -24,6 +24,10 @@ EVIDENCE_HASHES = {
 }
 
 
+def _canonical_sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+
+
 def test_closure_is_immutable_and_fail_closed(tmp_path, monkeypatch):
     assert market_shadow_status() == {
         "scientific_status": "CLOSED_BY_HUMAN_DECISION",
@@ -63,7 +67,7 @@ def test_no_operational_market_surface_exists():
 
 def test_closure_and_historical_evidence_hashes_are_stable():
     closure = ROOT / "docs" / "records" / "beyond_market_closure.json"
-    assert hashlib.sha256(closure.read_bytes()).hexdigest() == CLOSURE_HASH
+    assert _canonical_sha256(closure) == CLOSURE_HASH
     assert closure_record()["human_decision"]["real_money"].endswith("bloqueada permanentemente.")
     for relative, expected in EVIDENCE_HASHES.items():
-        assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
+        assert _canonical_sha256(ROOT / relative) == expected
