@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 import statistics as st
 import sys
 from pathlib import Path
@@ -122,6 +123,35 @@ def simulate(rows: list[dict], bankroll0: float, min_edge: float,
     }
 
 
+def bootstrap_roi(rows: list[dict], bankroll0: float, min_edge: float, shrink: float,
+                   cap: float, blend: float, iterations: int, seed: int) -> dict:
+    """Reamostragem com reposição dos casos (mesmo bootstrap_iterations/seed de
+    config.yaml, iterations=1000/seed=13 por padrão) pra estimar um intervalo
+    de confiança do ROI, em vez de confiar num único número de amostra pequena.
+    Cada reamostra é reordenada cronologicamente antes de simular, porque o
+    staking Kelly é dependente de trajetória (a banca de uma aposta afeta o
+    stake da próxima)."""
+    rng = random.Random(seed)
+    n = len(rows)
+    rois = []
+    for _ in range(iterations):
+        sample = [rows[rng.randrange(n)] for _ in range(n)]
+        sample.sort(key=lambda r: r["match_ts"])
+        r = simulate(sample, bankroll0, min_edge, shrink, cap, blend)
+        rois.append(r["roi_sobre_banca_inicial_pct"])
+    rois.sort()
+    lo_idx = int(0.025 * iterations)
+    hi_idx = min(int(0.975 * iterations), iterations - 1)
+    return {
+        "iterations": iterations, "seed": seed,
+        "roi_mean_pct": round(st.mean(rois), 2),
+        "roi_median_pct": round(st.median(rois), 2),
+        "roi_ci95_low_pct": round(rois[lo_idx], 2),
+        "roi_ci95_high_pct": round(rois[hi_idx], 2),
+        "frac_reamostras_positivas_pct": round(sum(1 for x in rois if x > 0) / iterations * 100, 1),
+    }
+
+
 SWEEP_GRID = [
     # (min_edge, kelly_shrink, kelly_cap, blend_market, label)
     (0.02, 0.25, 0.02, 0.0, "baseline (original)"),
@@ -176,9 +206,22 @@ def run_holdout(rows: list[dict], bankroll0: float) -> None:
     if r["roi_sobre_banca_inicial_pct"] <= 0:
         print("\n=> ROI positivo na calibração NÃO se sustentou na validação: "
               "era ruído/overfitting, não edge real.")
+        return
+    print("\n=> ROI positivo se manteve fora da amostra de calibração — "
+          "rodando bootstrap pra saber se isso é sinal ou sorte de amostra pequena.")
+
+    print("\n=== bootstrap (1000 reamostras) do ROI na metade de VALIDAÇÃO ===")
+    boot = bootstrap_roi(val_rows, bankroll0, min_edge, shrink, cap, blend,
+                          iterations=1000, seed=13)
+    print(json.dumps(boot, ensure_ascii=False, indent=2))
+    if boot["roi_ci95_low_pct"] <= 0:
+        print(f"\n=> intervalo de confiança de 95% ({boot['roi_ci95_low_pct']}%, "
+              f"{boot['roi_ci95_high_pct']}%) inclui zero (e territorio negativo) — "
+              "não dá pra afirmar que o edge é real, estatisticamente ainda pode ser puro acaso.")
     else:
-        print("\n=> ROI positivo se manteve fora da amostra de calibração — "
-              "ainda é pouco dado pra confiança alta, mas é um sinal melhor que o grid sozinho.")
+        print(f"\n=> intervalo de confiança de 95% ({boot['roi_ci95_low_pct']}%, "
+              f"{boot['roi_ci95_high_pct']}%) fica inteiro acima de zero — sinal mais forte, "
+              "mas ainda é uma amostra pequena/janela curta pra apostar dinheiro real nisso.")
 
 
 def main(argv=None) -> int:
@@ -200,7 +243,13 @@ def main(argv=None) -> int:
                           "(AVISO: escolher a melhor aqui e' data snooping — use --holdout)")
     ap.add_argument("--holdout", action="store_true",
                      help="escolhe a melhor config numa metade cronológica e valida "
-                          "sem lookahead na outra metade")
+                          "sem lookahead na outra metade (roda bootstrap automaticamente "
+                          "se o ROI da validação for positivo)")
+    ap.add_argument("--bootstrap", action="store_true",
+                     help="roda bootstrap de ROI (1000 reamostras) pra --min-edge/"
+                          "--kelly-shrink/--kelly-cap/--blend-market dados, no --input inteiro")
+    ap.add_argument("--bootstrap-iterations", type=int, default=1000)
+    ap.add_argument("--bootstrap-seed", type=int, default=13)
     ap.add_argument("--output", type=Path, default=ROOT / "data" / "bankroll_simulation.json")
     args = ap.parse_args(argv)
 
@@ -208,6 +257,13 @@ def main(argv=None) -> int:
 
     if args.holdout:
         run_holdout(rows, args.bankroll)
+        return 0
+
+    if args.bootstrap:
+        boot = bootstrap_roi(rows, args.bankroll, args.min_edge, args.kelly_shrink,
+                              args.kelly_cap, args.blend_market,
+                              args.bootstrap_iterations, args.bootstrap_seed)
+        print(json.dumps(boot, ensure_ascii=False, indent=2))
         return 0
 
     if args.sweep:
