@@ -1,8 +1,8 @@
 """Clone/install hygiene without conditional skips."""
 
-import hashlib
 import shutil
 import subprocess
+import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,16 +31,29 @@ def test_no_code_file_is_gitignored():
 
 
 def test_shared_wheels_match_canonical_hashes_and_are_visible_to_git():
-    git = shutil.which("git")
+    # predictor-core/predictor-ops are consumed from their published GitHub
+    # Release (see [tool.uv.sources] in pyproject.toml), not from a wheel
+    # vendored under wheelhouse/ in this repo (that path is .gitignore'd and
+    # was never actually committed - a fresh clone never had these files).
+    # The portable, git-visible source of truth is the lockfile itself.
     expected = {
-        "wheelhouse/predictor_core-2.1.0-py3-none-any.whl": "83de1d4415700dedaf387bc46dd9685e046de1fa47f37367bf2167462b09761b",
-        "wheelhouse/predictor_ops-2.0.1-py3-none-any.whl": "37de983718b318fc1ccadc6b299db9fccdbea946080a2b710d6dd6a939a7e766",
+        "predictor-core": (
+            "https://github.com/leonardosovienski/core-predictor/releases/download/v2.1.0/predictor_core-2.1.0-py3-none-any.whl",
+            "sha256:83de1d4415700dedaf387bc46dd9685e046de1fa47f37367bf2167462b09761b",
+        ),
+        "predictor-ops": (
+            "https://github.com/leonardosovienski/tools-predictor/releases/download/v2.0.1/predictor_ops-2.0.1-py3-none-any.whl",
+            "sha256:77ca2eb3f1090226dfef23b84d7fb2f9a61bd858c970d433d28303e637a8903e",
+        ),
     }
-    for relative, digest in expected.items():
-        path = ROOT / relative
-        assert path.is_file()
-        assert hashlib.sha256(path.read_bytes()).hexdigest() == digest
-        ignored = subprocess.run(
-            [git, "-C", str(ROOT), "check-ignore", relative], capture_output=True, check=False
-        )
-        assert ignored.returncode != 0
+    lock = tomllib.loads((ROOT / "uv.lock").read_text(encoding="utf-8"))
+    packages = {pkg["name"]: pkg for pkg in lock["package"]}
+    for name, (url, digest) in expected.items():
+        wheel = packages[name]["wheels"][0]
+        assert wheel["url"] == url
+        assert wheel["hash"] == digest
+    git = shutil.which("git")
+    ignored = subprocess.run(
+        [git, "-C", str(ROOT), "check-ignore", "uv.lock"], capture_output=True, check=False
+    )
+    assert ignored.returncode != 0

@@ -365,8 +365,8 @@ requires-dist = [
     { name = "pandas", specifier = ">=2.2,<4" },
     { name = "pip-audit", marker = "extra == 'dev'", specifier = ">=2.9,<3" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.3,<5" },
-    { name = "predictor-core", path = "wheelhouse/predictor_core-2.1.0-py3-none-any.whl" },
-    { name = "predictor-ops", path = "wheelhouse/predictor_ops-2.0.1-py3-none-any.whl" },
+    { name = "predictor-core", url = "https://github.com/leonardosovienski/core-predictor/releases/download/v2.1.0/predictor_core-2.1.0-py3-none-any.whl" },
+    { name = "predictor-ops", url = "https://github.com/leonardosovienski/tools-predictor/releases/download/v2.0.1/predictor_ops-2.0.1-py3-none-any.whl" },
     { name = "pydantic", specifier = ">=2.11,<3" },
     { name = "pydantic-settings", specifier = ">=2.10,<3" },
     { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1.404,<2" },
@@ -1053,9 +1053,9 @@ wheels = [
 [[package]]
 name = "predictor-core"
 version = "2.1.0"
-source = { path = "wheelhouse/predictor_core-2.1.0-py3-none-any.whl" }
+source = { url = "https://github.com/leonardosovienski/core-predictor/releases/download/v2.1.0/predictor_core-2.1.0-py3-none-any.whl" }
 wheels = [
-    { filename = "predictor_core-2.1.0-py3-none-any.whl", hash = "sha256:83de1d4415700dedaf387bc46dd9685e046de1fa47f37367bf2167462b09761b" },
+    { url = "https://github.com/leonardosovienski/core-predictor/releases/download/v2.1.0/predictor_core-2.1.0-py3-none-any.whl", hash = "sha256:83de1d4415700dedaf387bc46dd9685e046de1fa47f37367bf2167462b09761b" },
 ]
 
 [package.metadata]
@@ -1082,13 +1082,13 @@ provides-extras = ["dev", "http", "science", "scraping", "test"]
 [[package]]
 name = "predictor-ops"
 version = "2.0.1"
-source = { path = "wheelhouse/predictor_ops-2.0.1-py3-none-any.whl" }
+source = { url = "https://github.com/leonardosovienski/tools-predictor/releases/download/v2.0.1/predictor_ops-2.0.1-py3-none-any.whl" }
 dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
 ]
 wheels = [
-    { filename = "predictor_ops-2.0.1-py3-none-any.whl", hash = "sha256:37de983718b318fc1ccadc6b299db9fccdbea946080a2b710d6dd6a939a7e766" },
+    { url = "https://github.com/leonardosovienski/tools-predictor/releases/download/v2.0.1/predictor_ops-2.0.1-py3-none-any.whl", hash = "sha256:77ca2eb3f1090226dfef23b84d7fb2f9a61bd858c970d433d28303e637a8903e" },
 ]
 
 [package.metadata]

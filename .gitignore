@@ -46,7 +46,5 @@ data/cache/
 .coverage
 .ruff_cache/
 dist/
-wheelhouse/*
-!wheelhouse/predictor_core-2.1.0-py3-none-any.whl
-!wheelhouse/predictor_ops-2.0.1-py3-none-any.whl
+wheelhouse/
 /artifacts/security/*.json

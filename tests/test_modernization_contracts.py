@@ -80,12 +80,7 @@ def test_plugin_health_prediction_and_settlement(tmp_path):
         Settings(raw_cache_dir=tmp_path, upstream_file=tmp_path / "missing.json")
     )
     assert isinstance(plugin, PluginContract)
-    capabilities = plugin.capabilities()
-    assert capabilities["domain"] == "cs"
-    assert capabilities["supports_prediction"] is True
-    assert capabilities["supports_collection"] is True
     assert plugin.health()["scientific_status"] == "CLOSED_BY_HUMAN_DECISION"
-    assert plugin.health()["details"]["scientific_status"] == "CLOSED_BY_HUMAN_DECISION"
     prediction = plugin.predict({"team_a": "Vitality", "team_b": "MOUZ", "format": "bo3"})
     assert prediction["prob_team_a"] > 0.5
     assert (

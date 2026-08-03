@@ -1,12 +1,14 @@
 FROM python:3.13-alpine@sha256:399babc8b49529dabfd9c922f2b5eea81d611e4512e3ed250d75bd2e7683f4b0 AS builder
+RUN apk add --no-cache build-base
 WORKDIR /build
 COPY pyproject.toml README.md ./
-COPY wheelhouse ./wheelhouse
 COPY src ./src
 RUN python -m pip install --no-cache-dir build \
     && python -m build --wheel \
     && python -m venv /opt/venv \
-    && /opt/venv/bin/pip install --no-cache-dir --find-links /build/wheelhouse /build/dist/*.whl \
+    && /opt/venv/bin/pip install --no-cache-dir /build/dist/*.whl \
+        "predictor-core @ https://github.com/leonardosovienski/core-predictor/releases/download/v2.1.0/predictor_core-2.1.0-py3-none-any.whl" \
+        "predictor-ops @ https://github.com/leonardosovienski/tools-predictor/releases/download/v2.0.1/predictor_ops-2.0.1-py3-none-any.whl" \
     && /opt/venv/bin/python -m pip uninstall --yes pip \
     && rm -rf /root/.cache /tmp/*
 
