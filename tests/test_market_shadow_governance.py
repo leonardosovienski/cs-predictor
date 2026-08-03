@@ -16,12 +16,16 @@ from src.plugin import CsPredictorPlugin
 from src.settings import Settings
 
 ROOT = Path(__file__).resolve().parents[1]
-CLOSURE_HASH = "e30603fae444c7c88aced505a966946e34106f07c17e906c5d8b18c0bdde5903"
+CLOSURE_HASH = "8489268c9eedd5dc8783fda76174aa00304b4aa7bd1df312ded64da6554ae618"
 EVIDENCE_HASHES = {
     "docs/evidence/market_shadow/src/prospective_market.py": "372881f33f4a475d85628e88b6e38d5e945fd470cad25a8dae58300703de3f72",
-    "docs/evidence/market_shadow/scripts/install_market_shadow_task.ps1": "5855ac6eef9ed02e94b0fb574565fad5a77cf4cdb2fbb09fb0da65053a0751ec",
+    "docs/evidence/market_shadow/scripts/install_market_shadow_task.ps1": "ab02d8b16f63eb03a3fad3020eba24b300569b4666374ccf875c7b3ccfc7adf4",
     "docs/evidence/market_shadow/tests/test_beyond_market_closure.py": "dadf0c7f378d2d1f2cdda485775161c59efc544bab3b386416eef983466a416c",
 }
+
+
+def _canonical_sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 
 
 def test_closure_is_immutable_and_fail_closed(tmp_path, monkeypatch):
@@ -63,7 +67,7 @@ def test_no_operational_market_surface_exists():
 
 def test_closure_and_historical_evidence_hashes_are_stable():
     closure = ROOT / "docs" / "records" / "beyond_market_closure.json"
-    assert hashlib.sha256(closure.read_bytes()).hexdigest() == CLOSURE_HASH
+    assert _canonical_sha256(closure) == CLOSURE_HASH
     assert closure_record()["human_decision"]["real_money"].endswith("bloqueada permanentemente.")
     for relative, expected in EVIDENCE_HASHES.items():
-        assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
+        assert _canonical_sha256(ROOT / relative) == expected
