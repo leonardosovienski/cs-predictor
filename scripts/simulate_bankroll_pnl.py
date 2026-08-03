@@ -134,7 +134,7 @@ SWEEP_GRID = [
 ]
 
 
-def run_sweep(rows: list[dict], bankroll0: float) -> None:
+def _print_grid(rows: list[dict], bankroll0: float) -> None:
     header = (f"{'config':40} {'apostas':>8} {'win%':>7} {'roi%':>9} "
               f"{'drawdown%':>10} {'bankroll_final':>15}")
     print(header)
@@ -145,6 +145,40 @@ def run_sweep(rows: list[dict], bankroll0: float) -> None:
         print(f"{label:40} {r['apostas_feitas']:>8} {win_pct:>7} "
               f"{r['roi_sobre_banca_inicial_pct']:>9.1f} {r['max_drawdown_pct']:>10.1f} "
               f"{r['bankroll_final']:>15.2f}")
+
+
+def run_sweep(rows: list[dict], bankroll0: float) -> None:
+    """Grid direto na amostra inteira. AVISO: qualquer config vencedora aqui foi
+    escolhida olhando os mesmos dados usados pra medi-la (data snooping) —
+    use --holdout pra validar antes de acreditar em qualquer resultado positivo."""
+    _print_grid(rows, bankroll0)
+
+
+def run_holdout(rows: list[dict], bankroll0: float) -> None:
+    """Escolhe a config vencedora só na primeira metade cronológica (calibração)
+    e aplica, sem re-escolher nada, na segunda metade (validação) — sem
+    lookahead, igual ao resto do backtest prequential do projeto."""
+    cut = len(rows) // 2
+    calib_rows, val_rows = rows[:cut], rows[cut:]
+    print(f"calibração: {len(calib_rows)} casos ({calib_rows[0]['date']}..{calib_rows[-1]['date']})")
+    print(f"validação:  {len(val_rows)} casos ({val_rows[0]['date']}..{val_rows[-1]['date']})\n")
+
+    print("=== grid na metade de CALIBRAÇÃO (só pra escolher a config) ===")
+    _print_grid(calib_rows, bankroll0)
+
+    best = max(SWEEP_GRID, key=lambda cfg: simulate(calib_rows, bankroll0, *cfg[:4])["roi_sobre_banca_inicial_pct"])
+    min_edge, shrink, cap, blend, label = best
+    print(f"\nvencedora na calibração: {label!r}")
+
+    print("\n=== mesma config aplicada na metade de VALIDAÇÃO (sem re-escolher nada) ===")
+    r = simulate(val_rows, bankroll0, min_edge, shrink, cap, blend)
+    print(json.dumps({k: v for k, v in r.items() if k != "bets"}, ensure_ascii=False, indent=2))
+    if r["roi_sobre_banca_inicial_pct"] <= 0:
+        print("\n=> ROI positivo na calibração NÃO se sustentou na validação: "
+              "era ruído/overfitting, não edge real.")
+    else:
+        print("\n=> ROI positivo se manteve fora da amostra de calibração — "
+              "ainda é pouco dado pra confiança alta, mas é um sinal melhor que o grid sozinho.")
 
 
 def main(argv=None) -> int:
@@ -162,11 +196,19 @@ def main(argv=None) -> int:
                           "valores intermediários encolhem o modelo em direção "
                           "ao mercado (correção pro overconfidence nas pontas)")
     ap.add_argument("--sweep", action="store_true",
-                     help="roda uma grade de configurações e imprime tabela comparativa")
+                     help="roda uma grade de configurações e imprime tabela comparativa "
+                          "(AVISO: escolher a melhor aqui e' data snooping — use --holdout)")
+    ap.add_argument("--holdout", action="store_true",
+                     help="escolhe a melhor config numa metade cronológica e valida "
+                          "sem lookahead na outra metade")
     ap.add_argument("--output", type=Path, default=ROOT / "data" / "bankroll_simulation.json")
     args = ap.parse_args(argv)
 
     rows = load_rows(args.input)
+
+    if args.holdout:
+        run_holdout(rows, args.bankroll)
+        return 0
 
     if args.sweep:
         run_sweep(rows, args.bankroll)
