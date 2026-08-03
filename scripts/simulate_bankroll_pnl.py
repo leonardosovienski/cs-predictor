@@ -3,16 +3,21 @@
 Lê data/historical_market_sample.jsonl (gerado por
 docs/evidence/market_shadow/scripts/backtest_market_historical.py) e simula,
 em ordem cronológica, uma banca fictícia que aposta apenas quando o modelo
-diverge do preço de mercado (edge positivo), usando o mesmo staking
-(quarter-Kelly, cap 2% da banca) já implementado em src/betting.py.
+diverge do preço de mercado (edge positivo), usando staking Kelly fracionário
+(default: mesmos parâmetros de src/betting.py — quarter-Kelly, cap 2%).
+
+Suporta duas correções empíricas para o overconfidence do modelo nas pontas
+(medido no walk-forward): --min-edge mais alto (filtra ruído de calibração) e
+--blend-market (encolhe a probabilidade do modelo em direção à do mercado,
+que historicamente é melhor calibrado — brier_market < brier_model).
 
 Isto é PURAMENTE RETROSPECTIVO e PAPEL — nenhuma aposta real é feita ou
 sugerida. Resultado não substitui os gates forward-only do projeto.
 
 Uso:
     uv run python scripts/simulate_bankroll_pnl.py
-    uv run python scripts/simulate_bankroll_pnl.py --input data/historical_market_sample.jsonl \
-        --bankroll 1000 --min-edge 0.02
+    uv run python scripts/simulate_bankroll_pnl.py --min-edge 0.10 --blend-market 0.5
+    uv run python scripts/simulate_bankroll_pnl.py --sweep
 """
 from __future__ import annotations
 
@@ -25,8 +30,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from src.betting import kelly_stake  # noqa: E402
-
 
 def load_rows(path: Path) -> list[dict]:
     if not path.exists():
@@ -37,19 +40,26 @@ def load_rows(path: Path) -> list[dict]:
     return rows
 
 
-def simulate(rows: list[dict], bankroll0: float, min_edge: float) -> dict:
+def kelly_stake(prob: float, odds: float, bankroll: float, shrink: float, cap: float) -> float:
+    if not 0 < prob < 1 or odds <= 1 or bankroll <= 0:
+        raise ValueError("prob, odds ou bankroll invalidos")
+    raw = max(0.0, (prob * odds - 1) / (odds - 1))
+    return round(bankroll * min(raw * shrink, cap), 2)
+
+
+def simulate(rows: list[dict], bankroll0: float, min_edge: float,
+             kelly_shrink: float, kelly_cap: float, blend_market: float) -> dict:
     bankroll = bankroll0
     peak = bankroll0
     max_drawdown_pct = 0.0
     bets = []
 
     for row in rows:
-        model_a = row["model_probability_a"]
         market_a = row["market_probability_a"]
         outcome_a = row["outcome_a"]
+        # blend_market=0 -> puro modelo; 1 -> puro mercado (aposta zero, sem edge)
+        model_a = (1 - blend_market) * row["model_probability_a"] + blend_market * market_a
 
-        # decimal odds implícitas do preço Polymarket (sem vig separado; preço
-        # binário já é a probabilidade "de casa" do mercado)
         odds_a = 1.0 / market_a
         odds_b = 1.0 / (1.0 - market_a)
 
@@ -57,7 +67,7 @@ def simulate(rows: list[dict], bankroll0: float, min_edge: float) -> dict:
         edge_b = (1 - model_a) * odds_b - 1
 
         if edge_a <= min_edge and edge_b <= min_edge:
-            continue  # sem edge suficiente dos dois lados: não aposta
+            continue
 
         if edge_a >= edge_b:
             side, prob, odds, won = "A", model_a, odds_a, outcome_a == 1
@@ -65,7 +75,7 @@ def simulate(rows: list[dict], bankroll0: float, min_edge: float) -> dict:
             side, prob, odds, won = "B", 1 - model_a, odds_b, outcome_a == 0
 
         try:
-            stake = kelly_stake(prob, odds, bankroll)
+            stake = kelly_stake(prob, odds, bankroll, kelly_shrink, kelly_cap)
         except ValueError:
             continue
         if stake <= 0:
@@ -95,7 +105,8 @@ def simulate(rows: list[dict], bankroll0: float, min_edge: float) -> dict:
 
     return {
         "config": {"bankroll_inicial": bankroll0, "min_edge": min_edge,
-                   "kelly_shrink": 0.25, "kelly_cap_pct_banca": 0.02},
+                   "kelly_shrink": kelly_shrink, "kelly_cap_pct_banca": kelly_cap,
+                   "blend_market": blend_market},
         "candidatos_avaliados": len(rows),
         "apostas_feitas": n,
         "apostas_vencidas": wins,
@@ -111,17 +122,58 @@ def simulate(rows: list[dict], bankroll0: float, min_edge: float) -> dict:
     }
 
 
+SWEEP_GRID = [
+    # (min_edge, kelly_shrink, kelly_cap, blend_market, label)
+    (0.02, 0.25, 0.02, 0.0, "baseline (original)"),
+    (0.10, 0.25, 0.02, 0.0, "edge alto (>=10%)"),
+    (0.15, 0.25, 0.02, 0.0, "edge muito alto (>=15%)"),
+    (0.02, 0.10, 0.01, 0.0, "Kelly conservador"),
+    (0.02, 0.25, 0.02, 0.5, "blend 50% mercado"),
+    (0.02, 0.25, 0.02, 0.8, "blend 80% mercado"),
+    (0.10, 0.10, 0.01, 0.5, "edge alto + Kelly conservador + blend 50%"),
+]
+
+
+def run_sweep(rows: list[dict], bankroll0: float) -> None:
+    header = (f"{'config':40} {'apostas':>8} {'win%':>7} {'roi%':>9} "
+              f"{'drawdown%':>10} {'bankroll_final':>15}")
+    print(header)
+    print("-" * len(header))
+    for min_edge, shrink, cap, blend, label in SWEEP_GRID:
+        r = simulate(rows, bankroll0, min_edge, shrink, cap, blend)
+        win_pct = f"{r['win_rate_apostado']*100:.1f}" if r["win_rate_apostado"] is not None else "-"
+        print(f"{label:40} {r['apostas_feitas']:>8} {win_pct:>7} "
+              f"{r['roi_sobre_banca_inicial_pct']:>9.1f} {r['max_drawdown_pct']:>10.1f} "
+              f"{r['bankroll_final']:>15.2f}")
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--input", type=Path, default=ROOT / "data" / "historical_market_sample.jsonl")
     ap.add_argument("--bankroll", type=float, default=1000.0)
     ap.add_argument("--min-edge", type=float, default=0.02,
                      help="edge mínimo (prob_model*odds - 1) pra considerar apostar")
+    ap.add_argument("--kelly-shrink", type=float, default=0.25,
+                     help="fração do Kelly completo a usar (default 0.25, igual src/betting.py)")
+    ap.add_argument("--kelly-cap", type=float, default=0.02,
+                     help="teto de stake como fração da banca (default 0.02)")
+    ap.add_argument("--blend-market", type=float, default=0.0,
+                     help="0=probabilidade pura do modelo; 1=pura do mercado; "
+                          "valores intermediários encolhem o modelo em direção "
+                          "ao mercado (correção pro overconfidence nas pontas)")
+    ap.add_argument("--sweep", action="store_true",
+                     help="roda uma grade de configurações e imprime tabela comparativa")
     ap.add_argument("--output", type=Path, default=ROOT / "data" / "bankroll_simulation.json")
     args = ap.parse_args(argv)
 
     rows = load_rows(args.input)
-    result = simulate(rows, args.bankroll, args.min_edge)
+
+    if args.sweep:
+        run_sweep(rows, args.bankroll)
+        return 0
+
+    result = simulate(rows, args.bankroll, args.min_edge,
+                       args.kelly_shrink, args.kelly_cap, args.blend_market)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
