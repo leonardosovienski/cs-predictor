@@ -14,7 +14,7 @@ from urllib.parse import urlencode, urlparse
 
 import httpx
 
-from ..config import identity_key
+from src.config import identity_key
 from predictor_core.data.contracts import DataUnavailableError
 
 GAMMA = "https://gamma-api.polymarket.com"

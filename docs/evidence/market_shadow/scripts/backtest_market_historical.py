@@ -19,14 +19,20 @@ import sqlite3
 import sys
 from urllib.parse import urlencode
 
-ROOT = Path(__file__).resolve().parent.parent
+# Este script foi arquivado em docs/evidence/market_shadow/ quando o Beyond
+# Market foi fechado; ROOT segue apontando pra raiz real do projeto (onde
+# vivem src/, data/cs.db e config.yaml) e o provider local de Polymarket
+# (docs/evidence/market_shadow/src/) entra à parte no sys.path.
+ROOT = Path(__file__).resolve().parents[4]
+EVIDENCE_SRC = Path(__file__).resolve().parent.parent / "src"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "vendor"))
+sys.path.insert(0, str(EVIDENCE_SRC))
 
 from src.config import identity_key, load_config  # noqa: E402
 from src.calibration import PlattCalibrator  # noqa: E402
-from src.data.polymarket_provider import (CLOB, GAMMA, DataUnavailableError,
-                                          PolymarketProvider, _array, _timestamp)  # noqa: E402
+from polymarket_provider import (CLOB, GAMMA, DataUnavailableError,  # noqa: E402
+                                 PolymarketProvider, _array, _timestamp)
 from src.model import (FORMAT_HOURS, K_FACTORS, infer_format, series_probs,
                        win_probability)  # noqa: E402
 
