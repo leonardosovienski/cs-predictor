@@ -16,6 +16,8 @@ O experimento Beyond Market permanece permanentemente
 settlement de mercado, ordens e uso de capital não são operações permitidas.
 O registro dessa decisão está em
 [`docs/records/beyond_market_closure.json`](docs/records/beyond_market_closure.json).
+A declaração operacional completa está em
+[`docs/CURRENT_OPERATIONAL_STATE.md`](docs/CURRENT_OPERATIONAL_STATE.md).
 
 ## Resultado científico canônico
 
@@ -128,4 +130,6 @@ Relatórios e tentativas anteriores foram preservados em
 [`docs/evidence/historical/`](docs/evidence/historical/). Eles explicam a
 evolução do projeto, mas seus números não substituem o replay canônico acima.
 Os contratos modernos estão em [`docs/MODERNIZATION.md`](docs/MODERNIZATION.md)
-e [`docs/VALIDATION.md`](docs/VALIDATION.md).
+e [`docs/VALIDATION.md`](docs/VALIDATION.md). A migração para core 2.2/ops 3.0
+e sua prova de transparência estão em
+[`docs/MIGRATION_OPS_V3.md`](docs/MIGRATION_OPS_V3.md).
