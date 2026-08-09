@@ -3,25 +3,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import StrEnum
 from typing import Any
+
+from predictor_core import ScientificState
+from predictor_ops import RunStatus
 
 from .event_store import EventRepository
 from .observability import increment
 from .transports import UpstreamTransport
 
 
-class OperationalState(StrEnum):
-    SUCCEEDED = "SUCCEEDED"
-    SOURCE_UNAVAILABLE = "SOURCE_UNAVAILABLE"
-    NO_UPSTREAM_EVENTS = "NO_UPSTREAM_EVENTS"
-    FAILED = "FAILED"
-    CLOSED_BY_HUMAN_DECISION = "CLOSED_BY_HUMAN_DECISION"
-
-
 @dataclass(frozen=True)
 class ServiceResult:
-    state: OperationalState
+    run_status: RunStatus
+    outcome: str
     accepted: int = 0
     duplicates: int = 0
     detail: str | None = None
@@ -36,10 +31,10 @@ class ArchivalCollectionService:
             events = list(self.transport.receive())
         except (OSError, TimeoutError, ConnectionError) as exc:
             increment("collection_runs_total", state="SOURCE_UNAVAILABLE")
-            return ServiceResult(OperationalState.SOURCE_UNAVAILABLE, detail=type(exc).__name__)
+            return ServiceResult(RunStatus.SOURCE_UNAVAILABLE, "SOURCE_UNAVAILABLE", detail=type(exc).__name__)
         if not events:
             increment("collection_runs_total", state="NO_UPSTREAM_EVENTS")
-            return ServiceResult(OperationalState.NO_UPSTREAM_EVENTS)
+            return ServiceResult(RunStatus.SUCCEEDED, "NO_UPSTREAM_EVENTS")
         accepted = duplicates = 0
         for event in events:
             if self.repository.put(event):
@@ -50,7 +45,7 @@ class ArchivalCollectionService:
         increment("collection_runs_total", state="SUCCEEDED")
         increment("collection_events_total", accepted, result="accepted")
         increment("collection_events_total", duplicates, result="duplicate")
-        return ServiceResult(OperationalState.SUCCEEDED, accepted, duplicates)
+        return ServiceResult(RunStatus.SUCCEEDED, "SUCCEEDED", accepted, duplicates)
 
 
 class PredictionService:
@@ -74,7 +69,7 @@ class IngestionService:
 class SettlementService:
     """Sports-only settlement boundary. Market shadow can never be reopened here."""
 
-    SCIENTIFIC_STATUS = OperationalState.CLOSED_BY_HUMAN_DECISION
+    SCIENTIFIC_STATUS = ScientificState.CLOSED_BY_HUMAN_DECISION
 
     def settle(self, event_id: str, result: dict[str, Any]) -> dict[str, Any]:
         return {"event_id": event_id, "result": result, "market_shadow": self.SCIENTIFIC_STATUS}

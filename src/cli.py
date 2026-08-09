@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import sys
 from pathlib import Path
 
 from .event_store import JsonlEventRepository
@@ -11,6 +13,10 @@ from .plugin import CsPredictorPlugin
 from .services import ArchivalCollectionService
 from .settings import Settings
 from .transports import FileTransport
+
+
+def _laboratory_enabled(explicit: bool) -> bool:
+    return explicit or os.environ.get("CS_LABORATORY") == "1"
 
 
 def collect_main(argv: list[str] | None = None) -> int:
@@ -24,14 +30,15 @@ def collect_main(argv: list[str] | None = None) -> int:
     print(
         json.dumps(
             {
-                "state": result.state,
+                "run_status": result.run_status,
+                "outcome": result.outcome,
                 "accepted": result.accepted,
                 "duplicates": result.duplicates,
                 "detail": result.detail,
             }
         )
     )
-    return 0 if result.state in {"SUCCEEDED", "NO_UPSTREAM_EVENTS"} else 2
+    return 0 if result.run_status == "SUCCEEDED" else 2
 
 
 def ingest_main(argv: list[str] | None = None) -> int:
@@ -39,7 +46,11 @@ def ingest_main(argv: list[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(prog="cs-ingest-hltv")
     parser.add_argument("--until-date", required=True)
+    parser.add_argument("--laboratory", action="store_true")
     args = parser.parse_args(argv)
+    if not _laboratory_enabled(args.laboratory):
+        print("cs-ingest-hltv is laboratory-only; use --laboratory or CS_LABORATORY=1", file=sys.stderr)
+        return 2
     count = sum(len(page) for page in HltvProvider().fetch_results(args.until_date))
     print(json.dumps({"state": "SUCCEEDED", "events": count}))
     return 0
@@ -50,8 +61,17 @@ def settle_main(argv: list[str] | None = None) -> int:
     parser.add_argument("event_id")
     parser.add_argument("--result", required=True)
     args = parser.parse_args(argv)
-    print(json.dumps(CsPredictorPlugin().settle(args.event_id, json.loads(args.result))))
-    return 0
+    del args
+    print(
+        json.dumps(
+            {
+                "run_status": "CONFIGURATION_ERROR",
+                "scientific_state": "CLOSED_BY_HUMAN_DECISION",
+                "detail": "cs-settle is disabled; market settlement cannot be reopened",
+            }
+        )
+    )
+    return 2
 
 
 def main(argv: list[str] | None = None) -> int:

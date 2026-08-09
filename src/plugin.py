@@ -35,7 +35,8 @@ class CsPredictorPlugin:
             JsonlEventRepository(self.settings.archive_path),
         ).collect()
         return {
-            "state": result.state,
+            "state": result.outcome,
+            "run_status": result.run_status,
             "accepted": result.accepted,
             "duplicates": result.duplicates,
             "detail": result.detail,
@@ -47,17 +48,17 @@ class CsPredictorPlugin:
             "domain": self.domain,
             "supports_prediction": True,
             "supports_collection": True,
-            "supports_settlement": True,
+            "supports_settlement": False,
             "extra": {
                 "collection_modes": ["file", "object-storage", "queue"],
-                "settlement": "sports-only",
+                "settlement": "disabled-closed-by-human-decision",
                 "market_shadow": False,
                 "trading": False,
             },
             # Backward-compatible fields used by the domain's existing CLI/tests.
             "prediction": True,
             "collection": ["file", "object-storage", "queue"],
-            "settlement": "sports-only",
+            "settlement": "disabled-closed-by-human-decision",
             "market_shadow": False,
             "trading": False,
             "scientific_status": "CLOSED_BY_HUMAN_DECISION",

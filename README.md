@@ -1,7 +1,7 @@
 # cs-predictor
 
 Laboratório local de previsão de partidas de Counter-Strike 2 e consumidor dos
-pacotes `predictor-core` e `predictor-ops`. Requer Python 3.13; Python 3.14 é
+pacotes `predictor-core==2.2.0` e `predictor-ops==3.0.0`. Requer Python 3.13; Python 3.14 é
 experimental. Não é uma ferramenta de investimento.
 
 ## Situação atual
@@ -103,13 +103,14 @@ Produção:
 
 Laboratório, sem autorização de produção:
 
-- `cs-predict`: previsão Elo/Platt e consultas de handicap;
-- `cs-ingest-hltv`: acesso exploratório ao provider;
+- `cs-predict --laboratory`: previsão Elo/Platt e consultas de handicap;
+- `cs-ingest-hltv --laboratory`: acesso exploratório ao provider;
 - `python -m src.ingest_hltv`: rematerialização do Sports DB;
 - scripts em `scripts/`: replay, calibração, simulação e avaliação.
 
-`cs-settle` é uma superfície histórica e não autoriza settlement de mercado.
-Seu bloqueio explícito faz parte da migração operacional seguinte.
+`CS_LABORATORY=1` pode substituir a flag em ambientes de laboratório
+controlados. `cs-settle` é mantido apenas para compatibilidade: sempre informa
+`CLOSED_BY_HUMAN_DECISION` e retorna código 2, sem executar settlement.
 
 ## Arquitetura
 

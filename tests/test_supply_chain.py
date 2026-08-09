@@ -16,16 +16,16 @@ def _locked_wheel_hash(package: str) -> str:
     raise AssertionError(f"{package} not found in uv.lock")
 
 
-def test_predictor_ops_201_is_installed_from_site_packages_and_hash_matches():
+def test_predictor_ops_300_is_installed_from_site_packages_and_hash_matches():
     # predictor-ops is distributed as a published GitHub Release asset (see
     # [tool.uv.sources] in pyproject.toml), not a wheel vendored in this repo.
     # uv itself enforces this hash on every sync; this test cross-checks that
     # the lockfile still points at the known-good, canonical release.
     assert _locked_wheel_hash("predictor-ops") == (
-        "sha256:77ca2eb3f1090226dfef23b84d7fb2f9a61bd858c970d433d28303e637a8903e"
+        "sha256:9574d5fa4d17232a9d7dbd1aaff0131b65f341974508c5457b8d570bf41e8945"
     )
     dist = distribution("predictor-ops")
-    assert version("predictor-ops") == "2.0.1"
+    assert version("predictor-ops") == "3.0.0"
     assert "site-packages" in str(dist.locate_file("")).replace("\\", "/")
     assert collect_provenance(strict=True)["identity_status"] == "VALIDATED"
 

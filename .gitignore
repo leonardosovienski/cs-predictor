@@ -19,6 +19,7 @@
 /data/sports_market_migration_report.json
 /backups/
 /logs/operations/
+/work/
 # trials.json + atestado são VERSIONADOS (denominador do DSR imortal)
 *.db
 *.log

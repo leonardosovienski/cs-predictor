@@ -14,15 +14,15 @@ import argparse
 import json
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+
+from predictor_core.data.contracts import PredictionPoint
+from predictor_core.kernel.obs import emit_event
 
 from .config import ROOT, load_config
 from .model import FORMAT_HOURS, EloModel, cover_probability
 from .model_maps import MapEloModel, predict_series_with_maps
-
-from predictor_core.data.contracts import PredictionPoint
-from predictor_core.kernel.obs import emit_event
 
 _DOMAIN = "cs"
 
@@ -36,7 +36,7 @@ def run(team_a: str, team_b: str, *, fmt: str = "bo3",
         handicap: float | None = None, maps: list[str] | None = None,
         now: datetime | None = None, scheduled_start_at: datetime | None = None,
         dry_run: bool = False) -> dict:
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     if now.tzinfo is None or now.utcoffset() is None:
         raise ValueError("now exige timezone")
     if scheduled_start_at is None:
@@ -45,7 +45,7 @@ def run(team_a: str, team_b: str, *, fmt: str = "bo3",
         scheduled_start_at = now
     if scheduled_start_at.tzinfo is None or scheduled_start_at.utcoffset() is None:
         raise ValueError("scheduled_start_at exige timezone")
-    scheduled_start_at = scheduled_start_at.astimezone(timezone.utc)
+    scheduled_start_at = scheduled_start_at.astimezone(UTC)
     if not dry_run and now > scheduled_start_at:
         raise ValueError("previsao persistida exige inicio futuro ou presente")
     model = EloModel()
@@ -126,9 +126,14 @@ def main(argv=None) -> int:
     ap.add_argument("--dry-run", action="store_true",
                     help="consulta exploratória: não grava no ledger "
                          "predictions.jsonl nem emite telemetria")
+    ap.add_argument("--laboratory", action="store_true",
+                    help="confirma execução em ambiente de laboratório")
     ap.add_argument("--scheduled-start", required=True,
                     help="inicio UTC ISO-8601 da serie")
     args = ap.parse_args(argv)
+    if not args.laboratory and os.environ.get("CS_LABORATORY") != "1":
+        print("cs-predict is laboratory-only; use --laboratory or CS_LABORATORY=1", file=sys.stderr)
+        return 2
 
     cfg = load_config()
     fmt = args.format or cfg.get("default_format", "bo3")

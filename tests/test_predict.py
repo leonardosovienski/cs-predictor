@@ -1,17 +1,18 @@
 """Serving (src/predict.py) — 3 confrontos, log isolado, PredictionPoint."""
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
 from src import predict
 
 PARES = [("Vitality", "MOUZ"), ("Falcons", "Spirit"), ("FURIA", "paiN")]
-START = datetime(2030, 1, 1, 12, 0, tzinfo=timezone.utc)
+START = datetime(2030, 1, 1, 12, 0, tzinfo=UTC)
 
 
 @pytest.fixture(autouse=True)
 def _isolado(tmp_path, monkeypatch):
+    monkeypatch.setenv("CS_LABORATORY", "1")
     monkeypatch.setenv("PREDICTIONS_LOG_PATH", str(tmp_path / "pred.jsonl"))
     monkeypatch.setenv("PREDICTOR_EVENTS_PATH", str(tmp_path / "events.jsonl"))
     yield
@@ -26,8 +27,8 @@ def test_saida_consistente(a, b):
 
 
 def test_carimbo_prediction_point_por_formato():
-    now = datetime(2026, 7, 10, 22, 0, tzinfo=timezone.utc)
-    start = datetime(2026, 7, 11, 22, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 7, 10, 22, 0, tzinfo=UTC)
+    start = datetime(2026, 7, 11, 22, 0, tzinfo=UTC)
     r3 = predict.run("Vitality", "MOUZ", fmt="bo3", now=now, scheduled_start_at=start)
     assert r3["matures_at"] == "2026-07-12T01:00:00+00:00"    # start +3h
     r1 = predict.run("Vitality", "MOUZ", fmt="bo1", now=now, scheduled_start_at=start)
@@ -40,6 +41,15 @@ def test_cli_json_valido(capsys):
     out = json.loads(capsys.readouterr().out)
     assert {"prob_team_a", "prob_team_b", "total_mapas_projetado",
             "handicap_recomendado"} <= set(out)
+
+
+def test_cli_requires_explicit_laboratory_mode(monkeypatch, capsys):
+    monkeypatch.delenv("CS_LABORATORY")
+    rc = predict.main(
+        ["Vitality", "MOUZ", "--scheduled-start", "2030-01-01T12:00:00Z"]
+    )
+    assert rc == 2
+    assert "laboratory-only" in capsys.readouterr().err
 
 
 def test_cli_handicap_consultado(capsys):

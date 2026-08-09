@@ -14,7 +14,7 @@ Validation date: 2026-08-02.
 - Wheel and sdist build successfully. The wheel contains `jobs.json`, typed
   configuration defaults, team data, and calibration resources.
 - A fresh external Python 3.13 environment installed the domain wheel plus the
-  local `predictor_core==2.1.0` and `predictor_ops==2.0.1` wheels. Imports were
+  published `predictor_core==2.2.0` and `predictor_ops==3.0.0` wheels. Imports were
   verified under `site-packages`; health, scheduler validation, and a dry-run
   prediction all succeeded outside the checkout.
 - The delivered runtime dependency tree has no known vulnerabilities according

@@ -9,7 +9,7 @@
       "max_output_bytes": 1048576,
       "provenance": {"domain": "cs", "mode": "COLLECTION_ONLY"},
       "provenance_mode": "strict",
-      "consumer_status": "COLLECTION_ONLY",
+      "scientific_state": "COLLECTION_ONLY",
       "exit_statuses": {"0": "SUCCEEDED", "2": "SOURCE_UNAVAILABLE"}
     }
   ]

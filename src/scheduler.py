@@ -37,7 +37,7 @@ def execute(
     shutdown: threading.Event | None = None,
 ):
     result = run_job(load_collection_job(config, settings), shutdown=shutdown)
-    increment("scheduler_runs_total", status=result.status)
+    increment("scheduler_runs_total", status=result.run_status)
     return result
 
 

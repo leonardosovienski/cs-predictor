@@ -1,18 +1,23 @@
 """Coorte arquivistica CS2 COLLECTION_ONLY, isolada de mercados e modelos."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
 import hashlib
-from importlib.metadata import version
 import json
-from pathlib import Path
 import subprocess
 import sys
-from typing import Any
 import unicodedata
 import uuid
+from datetime import UTC, datetime, timedelta
+from importlib.metadata import version
+from pathlib import Path
+from typing import Any
 
-from predictor_core.contracts.collection import CollectionArchive, LifecycleState, ObservationEnvelope
+from predictor_core import ScientificState
+from predictor_core.contracts.collection import (
+    CollectionArchive,
+    LifecycleState,
+    ObservationEnvelope,
+)
 
 # `pythonw.exe` (executavel de toda tarefa agendada) nao tem console: um
 # processo de console filho ganharia janela VISIVEL na tela do dono.
@@ -37,10 +42,10 @@ def _hash(value: Any) -> str:
 def _utc(value: str | datetime) -> datetime:
     value = datetime.fromisoformat(value.replace("Z", "+00:00")) if isinstance(value, str) else value
     if value.tzinfo is None or value.utcoffset() is None: raise ArchivalCollectionError("horario UTC obrigatorio")
-    return value.astimezone(timezone.utc)
+    return value.astimezone(UTC)
 
 
-def _iso(value: datetime) -> str: return value.astimezone(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+def _iso(value: datetime) -> str: return value.astimezone(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def _team_id(name: str) -> str:
@@ -62,9 +67,10 @@ def _commit() -> str:
 def ensure_run(*, now: datetime | None = None) -> dict[str, str]:
     COLLECTION_ROOT.mkdir(parents=True, exist_ok=True)
     if RUN_FILE.exists(): return json.loads(RUN_FILE.read_text(encoding="utf-8"))
-    created = now or datetime.now(timezone.utc)
+    created = now or datetime.now(UTC)
     payload = {"collection_run_id": f"cs2-archival-{created:%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:12]}",
-               "mode": "COLLECTION_ONLY", "created_at_utc": _iso(created), "project": "cs-predictor"}
+               "mode": ScientificState.COLLECTION_ONLY.value,
+               "created_at_utc": _iso(created), "project": "cs-predictor"}
     tmp = RUN_FILE.with_suffix(".tmp")
     tmp.write_text(json.dumps(payload, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     tmp.replace(RUN_FILE)
@@ -92,7 +98,7 @@ class ArchivalCollection:
         run = self.run
         # O archive serializa em segundos; microssegundo sobrevivente quebraria a
         # comparacao com o predecessor relido do log na proxima transicao.
-        observed = (observed_at or datetime.now(timezone.utc)).replace(microsecond=0)
+        observed = (observed_at or datetime.now(UTC)).replace(microsecond=0)
         counts = {"accepted": 0, "ambiguous": 0, "invalid": 0, "complete": 0}
         for raw in rows:
             try:
@@ -142,7 +148,7 @@ class ArchivalCollection:
         return current
 
     def status(self, *, now: datetime | None = None) -> dict[str, Any]:
-        now = now or datetime.now(timezone.utc); run = self.run; events = {}
+        now = now or datetime.now(UTC); run = self.run; events = {}
         for row in self.archive._events():
             env = ObservationEnvelope.from_dict(row["envelope"])
             if env.collection_run_id == run["collection_run_id"]: events[env.canonical_event_id] = env

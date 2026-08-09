@@ -1,18 +1,20 @@
-from datetime import datetime, timezone
 import json
+from datetime import UTC, datetime
 from typing import Any, Protocol, runtime_checkable
 
 import pytest
+from predictor_core import ScientificState
+from predictor_ops import RunStatus
 from pydantic import ValidationError
 
 from src.event_store import JsonlEventRepository
 from src.plugin import CsPredictorPlugin
-from src.services import ArchivalCollectionService, OperationalState, SettlementService
+from src.services import ArchivalCollectionService, SettlementService
 from src.settings import Settings, settings
 from src.transports import FileTransport, ObjectStorageTransport, QueueTransport
 from src.upstream import Provenance, UpstreamEvent
 
-NOW = datetime(2026, 8, 1, tzinfo=timezone.utc)
+NOW = datetime(2026, 8, 1, tzinfo=UTC)
 
 
 @runtime_checkable
@@ -62,17 +64,18 @@ def test_no_events_is_not_source_unavailable(tmp_path):
     result = ArchivalCollectionService(
         FileTransport(source), JsonlEventRepository(tmp_path / "a")
     ).collect()
-    assert result.state is OperationalState.NO_UPSTREAM_EVENTS
+    assert result.run_status is RunStatus.SUCCEEDED
+    assert result.outcome == "NO_UPSTREAM_EVENTS"
     missing = ArchivalCollectionService(
         FileTransport(tmp_path / "missing"), JsonlEventRepository(tmp_path / "b")
     ).collect()
-    assert missing.state is OperationalState.SOURCE_UNAVAILABLE
+    assert missing.run_status is RunStatus.SOURCE_UNAVAILABLE
 
 
 def test_database_boundary_and_human_closure():
     with pytest.raises(ValidationError, match="different physical"):
         Settings(sports_db_url="sqlite:///same.db", market_db_url="sqlite:///same.db")
-    assert SettlementService.SCIENTIFIC_STATUS is OperationalState.CLOSED_BY_HUMAN_DECISION
+    assert SettlementService.SCIENTIFIC_STATUS is ScientificState.CLOSED_BY_HUMAN_DECISION
 
 
 def test_plugin_health_prediction_and_settlement(tmp_path):
@@ -81,6 +84,7 @@ def test_plugin_health_prediction_and_settlement(tmp_path):
     )
     assert isinstance(plugin, PluginContract)
     assert plugin.health()["scientific_status"] == "CLOSED_BY_HUMAN_DECISION"
+    assert plugin.capabilities()["supports_settlement"] is False
     prediction = plugin.predict({"team_a": "Vitality", "team_b": "MOUZ", "format": "bo3"})
     assert prediction["prob_team_a"] > 0.5
     assert (
@@ -133,3 +137,13 @@ def test_cli_health_and_collection(tmp_path, monkeypatch, capsys):
     assert cli.collect_main(["--input", str(source)]) == 0
     assert json.loads(capsys.readouterr().out)["accepted"] == 1
     assert cli.main(["collect", "--input", str(source)]) == 0
+
+
+def test_settle_is_fail_closed_and_ingest_requires_laboratory(capsys):
+    from src import cli
+
+    assert cli.settle_main(["event-1", "--result", '{"winner":"Vitality"}']) == 2
+    closed = json.loads(capsys.readouterr().out)
+    assert closed["scientific_state"] == "CLOSED_BY_HUMAN_DECISION"
+    assert cli.ingest_main(["--until-date", "2025-01-01"]) == 2
+    assert "laboratory-only" in capsys.readouterr().err

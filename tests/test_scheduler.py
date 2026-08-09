@@ -2,7 +2,7 @@ import json
 import sys
 import threading
 
-from predictor_ops import JobConfig, OperationalState, run_job
+from predictor_ops import JobConfig, RunStatus, run_job
 from predictor_ops.runtime import LocalBackend
 
 from src.scheduler import execute, load_collection_job, main
@@ -26,12 +26,14 @@ def test_declarative_job_and_manual_execution_without_systemd(tmp_path, capsys):
     assert job.command[:3] == [sys.executable, "-m", "src.scheduler_payload"]
     assert job.timeout_seconds == 900 and job.heartbeat_interval_seconds == 15
     result = execute(settings=cfg)
-    assert result.status is OperationalState.COLLECTION_ONLY
+    assert result.run_status is RunStatus.SUCCEEDED
+    assert result.record["scientific_state"] == "COLLECTION_ONLY"
     root = cfg.scheduler_runtime_dir / job.id
     heartbeat = json.loads((root / "heartbeat.json").read_text(encoding="utf-8"))
     terminal = json.loads((root / "events.jsonl").read_text(encoding="utf-8").splitlines()[-1])
     assert heartbeat["finished_at"] and terminal["run_id"] == result.run_id
-    assert heartbeat["status"] == "COLLECTION_ONLY"
+    assert heartbeat["run_status"] == "SUCCEEDED"
+    assert heartbeat["scientific_state"] == "COLLECTION_ONLY"
     capsys.readouterr()
     assert main(["--validate"]) == 0
     assert json.loads(capsys.readouterr().out)["valid"] is True
@@ -43,7 +45,7 @@ def test_lock_idempotency_timeout_and_shutdown(tmp_path):
     skipped = run_job(
         JobConfig(id="locked", command=[sys.executable, "-c", "print(1)"]), runtime_backend=backend
     )
-    assert skipped.status is OperationalState.SKIPPED
+    assert skipped.run_status is RunStatus.SKIPPED
     held.release()
 
     timeout = run_job(
