@@ -2,7 +2,7 @@
 
 | ID | Tentativa | Objetivo | Dados | Resultado | Evidência | Estado | Pode ser reutilizada? |
 |---|---|---|---|---|---|---|---|
-| CS-01 | HLTV `/results` via `curl_cffi` | histórico de séries | HLTV HTML | 17k+ séries, H1 prequential comprovada contra semente | `RELATORIO_FASE1.md`, `cs.db` | concluída | sim, Sports DB |
+| CS-01 | HLTV `/results` via `curl_cffi` | histórico de séries | HLTV HTML | 17k+ séries, H1 prequential comprovada contra semente | `evidence/historical/RELATORIO_FASE1.md`, `cs.db` | concluída | sim, Sports DB |
 | CS-02 | Parser de mapas HLTV | granularidade de mapas | páginas de partida HLTV | mapas de parte das séries; não é dataset de odds | `ingest_hltv_maps.py` | parcial | sim, somente esportivo |
 | CS-03 | Identidade/aliases | evitar colisões de equipes | `teams_cs.json`, ratings | colisões reais de caixa corrigidas; ambiguidade rejeitada | `test_identity_hostile.py` | concluída | sim |
 | CS-04 | Snapshots PRE_EVENT/MATURED | prova forward local | snapshots CS | vínculo SHA-256 e 4 pares válidos | `cs_snapshots.py` | concluída | sim, lifecycle local |

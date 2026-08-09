@@ -90,6 +90,6 @@ cronológica, prever ANTES de atualizar (previsão → `update_ratings`).
 - Novos testes: parsers da fonte, prequential sem lookahead (prever antes de
   atualizar), persistência dos ratings, harness.
 - Suíte ≥ 40 verdes, CI 3/3, working tree limpa.
-- Relatório `docs/RELATORIO_FASE1.md`: dataset, Brier/log-loss vs baselines,
+- Relatório histórico `docs/evidence/historical/RELATORIO_FASE1.md`: dataset, Brier/log-loss vs baselines,
   tabela de calibração, veredito da H1-CS e recomendação sobre a Fase 1b
   (odds ao vivo em sombra) — SEM aposta real em nenhum cenário.

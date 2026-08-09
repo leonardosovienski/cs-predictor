@@ -147,7 +147,8 @@
 > prev 0,07 → real 0,19) — zebra de CS vence mais que a logística /400 diz
 > (variância de veto/mapa + roster changes). Recalibrar escala/K = tentativa
 > N+1 no registro; NÃO foi rodada. Serving materializado: `ratings.json`
-> (Elo vivido de 1.227 times). Relatório: `docs/RELATORIO_FASE1.md`.
+> (Elo vivido de 1.227 times). Relatório histórico:
+> `docs/evidence/historical/RELATORIO_FASE1.md`.
 > Fase 1b (odds ao vivo em sombra) depende de fonte de odds corrente.
 
 > ## 🔫 CRIAÇÃO (2026-07-10)

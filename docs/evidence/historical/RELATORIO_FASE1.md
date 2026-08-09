@@ -6,7 +6,7 @@
 > normaliza formato sem escrever no banco e, em execução read-only, obteve
 > Brier 0,4602, acerto 62,5% e DM p<0,0001. Os ratings e a calibração canônicos
 > foram rematerializados com autorização em 2026-07-16; veja
-> `RELATORIO_REMATERIALIZACAO_2026-07-16.md`.
+> `RELATORIO_REMATERIALIZACAO_2026-07-16.md` (neste mesmo diretório histórico).
 
 > **Nao usar como resultado canonico atual.** O replay precisa ser refeito
 > apos a correcao de 2026-07-29: o update Elo agora compara vencedor da serie

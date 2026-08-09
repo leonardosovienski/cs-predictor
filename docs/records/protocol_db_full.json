@@ -1,0 +1,41 @@
+{
+  "database": {
+    "date_max": "2026-08-08",
+    "date_min": "2024-12-18",
+    "duplicate_match_ids": 0,
+    "format_distribution": {
+      "bo1": 2742,
+      "bo3": 15070,
+      "bo5": 187
+    },
+    "integrity_check": [
+      "ok"
+    ],
+    "integrity_ok": true,
+    "match_count": 17999,
+    "path": "C:\\Users\\Superleo13\\Documents\\Codex\\2026-08-09\\leia-os-3-projetos-e-entenda\\work\\cs-predictor\\data\\cs.db",
+    "sha256": "2817bd6c03eeb6ad989ea78963291c80b41f5d578abcfd3f58490a49b1b0482b",
+    "size_bytes": 2969600,
+    "tables": [
+      "match_maps",
+      "matches",
+      "sports_series_metadata"
+    ],
+    "ties": 0
+  },
+  "environment": {
+    "predictor_core": "2.1.0",
+    "predictor_ops": "2.0.1",
+    "python": "3.13.14"
+  },
+  "generated_at_utc": "2026-08-09T07:44:29Z",
+  "input_hashes": {
+    "config.yaml": "de55054f9f07b2bbe0a2e8b41ccb2b448af6542d284e43eb1b7e2ce87e91390a",
+    "uv.lock": "45e7fbbc4547af82382b0d871c8f99d3336d52be6ca2439e2ea2701e3da61941"
+  },
+  "repository": {
+    "commit": "db94f6a181eedf579ef563d4ae00ff7ae602f76c",
+    "dirty": true
+  },
+  "schema_version": "cs-db-protocol/1"
+}

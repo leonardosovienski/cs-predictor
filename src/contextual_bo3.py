@@ -10,7 +10,8 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Any
 
-from .model_maps import MapEloModel, predict_series_with_maps
+from .model import series_win_prob
+from .model_maps import MapEloModel, predict_series_with_maps, series_probs_hetero
 
 
 class ContextError(ValueError):
@@ -92,14 +93,23 @@ def predict_contextual_bo3(*, model: MapEloModel, team_a: str, team_b: str,
         forecast = predict_series_with_maps(model, team_a, team_b, scenario["maps"], "bo3")
         canonical_a, canonical_b = forecast["team_a"], forecast["team_b"]
         weight = scenario["weight"]
-        raw_probability += weight * forecast["prob_team_a_raw"]
+        # The rendered forecast intentionally rounds its public values. Using
+        # that rounded probability as input to Platt can move the calibrated
+        # result by one basis point. Aggregate the underlying map probabilities
+        # at full precision so a single scenario is exactly the direct model.
+        map_probabilities = [
+            model.win_probability(canonical_a, canonical_b, name)
+            for name in scenario["maps"]
+        ]
+        scenario_raw = series_win_prob(series_probs_hetero(map_probabilities, 2))
+        raw_probability += weight * scenario_raw
         expected_maps += weight * forecast["mapas_esperados"]
         for score, probability in forecast["score_probs"].items():
             score_probs[score] += weight * probability
         for map_name, probability in forecast["p_por_mapa"].items():
             map_probs[map_name] += weight * probability
         rendered.append({"maps": scenario["maps"], "weight": weight,
-                         "prob_team_a_raw": forecast["prob_team_a_raw"]})
+                         "prob_team_a_raw": round(scenario_raw, 4)})
     calibrated = model.base.platt.apply(raw_probability) if model.base.platt else raw_probability
     return {
         "team_a": canonical_a, "team_b": canonical_b, "format": "bo3",
