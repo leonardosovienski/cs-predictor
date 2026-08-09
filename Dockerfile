@@ -7,7 +7,7 @@ RUN python -m pip install --no-cache-dir build \
     && python -m build --wheel \
     && python -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir /build/dist/*.whl \
-        "predictor-core @ https://github.com/leonardosovienski/core-predictor/releases/download/v2.2.0/predictor_core-2.2.0-py3-none-any.whl" \
+        "predictor-core @ https://github.com/leonardosovienski/core-predictor/releases/download/v2.2.1/predictor_core-2.2.1-py3-none-any.whl" \
         "predictor-ops @ https://github.com/leonardosovienski/tools-predictor/releases/download/v3.0.0/predictor_ops-3.0.0-py3-none-any.whl" \
     && /opt/venv/bin/python -m pip uninstall --yes pip \
     && rm -rf /root/.cache /tmp/*

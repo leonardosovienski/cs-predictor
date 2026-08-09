@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cs-predictor"
-version = "3.0.1"
+version = "3.1.0"
 description = "CS2 prediction, ingestion, settlement and archival collection domain"
 readme = "README.md"
 requires-python = ">=3.13,<3.15"
 dependencies = [
   "curl-cffi>=0.13,<1", "httpx>=0.28,<1", "numpy>=2.2,<3", "pandas>=2.2,<4",
-  "predictor-core==2.2.0", "predictor-ops==3.0.0", "pydantic>=2.11,<3",
+  "predictor-core==2.2.1", "predictor-ops==3.0.0", "pydantic>=2.11,<3",
   "pydantic-settings>=2.10,<3", "pyyaml>=6,<7", "scipy>=1.15,<2",
 ]
 [project.optional-dependencies]
@@ -52,5 +52,5 @@ show_missing = true
 skip_covered = false
 
 [tool.uv.sources]
-predictor-core = { url = "https://github.com/leonardosovienski/core-predictor/releases/download/v2.2.0/predictor_core-2.2.0-py3-none-any.whl" }
+predictor-core = { url = "https://github.com/leonardosovienski/core-predictor/releases/download/v2.2.1/predictor_core-2.2.1-py3-none-any.whl" }
 predictor-ops = { url = "https://github.com/leonardosovienski/tools-predictor/releases/download/v3.0.0/predictor_ops-3.0.0-py3-none-any.whl" }
