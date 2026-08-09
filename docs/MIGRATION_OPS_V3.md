@@ -57,5 +57,7 @@ Esses contratos devem ser materializados em um ciclo de governança próprio,
 sem inventar dados retroativos. O protocolo SHA-256 existente continua sendo a
 âncora verificável do dataset canônico.
 
-O reuso de `RatingBook` foi deliberadamente adiado porque mudaria a camada
-numérica recém-canonizada e exigiria novo replay científico.
+O reuso de `RatingBook` foi deliberadamente adiado nesta migração. Ele foi
+concluído depois, no ciclo 3.1.0, mediante a API aditiva do core 2.2.1 e replay
+diferencial: 17.169 séries processadas e zero diferenças nos 1.233 ratings
+canônicos. A combinatória BO1/BO3/BO5 permanece responsabilidade do domínio.

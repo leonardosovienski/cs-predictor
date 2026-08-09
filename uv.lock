@@ -311,7 +311,7 @@ wheels = [
 
 [[package]]
 name = "cs-predictor"
-version = "3.0.1"
+version = "3.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "curl-cffi" },
@@ -365,7 +365,7 @@ requires-dist = [
     { name = "pandas", specifier = ">=2.2,<4" },
     { name = "pip-audit", marker = "extra == 'dev'", specifier = ">=2.9,<3" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.3,<5" },
-    { name = "predictor-core", url = "https://github.com/leonardosovienski/core-predictor/releases/download/v2.2.0/predictor_core-2.2.0-py3-none-any.whl" },
+    { name = "predictor-core", url = "https://github.com/leonardosovienski/core-predictor/releases/download/v2.2.1/predictor_core-2.2.1-py3-none-any.whl" },
     { name = "predictor-ops", url = "https://github.com/leonardosovienski/tools-predictor/releases/download/v3.0.0/predictor_ops-3.0.0-py3-none-any.whl" },
     { name = "pydantic", specifier = ">=2.11,<3" },
     { name = "pydantic-settings", specifier = ">=2.10,<3" },
@@ -1052,10 +1052,10 @@ wheels = [
 
 [[package]]
 name = "predictor-core"
-version = "2.2.0"
-source = { url = "https://github.com/leonardosovienski/core-predictor/releases/download/v2.2.0/predictor_core-2.2.0-py3-none-any.whl" }
+version = "2.2.1"
+source = { url = "https://github.com/leonardosovienski/core-predictor/releases/download/v2.2.1/predictor_core-2.2.1-py3-none-any.whl" }
 wheels = [
-    { url = "https://github.com/leonardosovienski/core-predictor/releases/download/v2.2.0/predictor_core-2.2.0-py3-none-any.whl", hash = "sha256:fe95dece93a2c91436ffd60058cea1d9192022d2170abb7e8e8512ccb76f9fdd" },
+    { url = "https://github.com/leonardosovienski/core-predictor/releases/download/v2.2.1/predictor_core-2.2.1-py3-none-any.whl", hash = "sha256:e9ff0783d451ba63f06540ca7e89368b83449953ad3bc005ab777e48d14a9095" },
 ]
 
 [package.metadata]
