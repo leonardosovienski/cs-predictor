@@ -31,7 +31,9 @@ class ArchivalCollectionService:
             events = list(self.transport.receive())
         except (OSError, TimeoutError, ConnectionError) as exc:
             increment("collection_runs_total", state="SOURCE_UNAVAILABLE")
-            return ServiceResult(RunStatus.SOURCE_UNAVAILABLE, "SOURCE_UNAVAILABLE", detail=type(exc).__name__)
+            return ServiceResult(
+                RunStatus.SOURCE_UNAVAILABLE, "SOURCE_UNAVAILABLE", detail=type(exc).__name__
+            )
         if not events:
             increment("collection_runs_total", state="NO_UPSTREAM_EVENTS")
             return ServiceResult(RunStatus.SUCCEEDED, "NO_UPSTREAM_EVENTS")

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cs-predictor"
-version = "2.0.0"
+version = "3.0.1"
 description = "CS2 prediction, ingestion, settlement and archival collection domain"
 readme = "README.md"
 requires-python = ">=3.13,<3.15"

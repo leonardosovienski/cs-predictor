@@ -1,10 +1,10 @@
 # Validation record
 
-Validation date: 2026-08-02.
+Latest validation: 2026-08-09 (`v3.0.1` release candidate).
 
 ## Green gates
 
-- Python 3.13: 138 tests passed, zero skips, with `ResourceWarning` and
+- Python 3.13.14: 146 tests passed, zero skips, with `ResourceWarning` and
   `PytestUnraisableExceptionWarning` promoted to errors.
 - Branch coverage: homologated runtime 85%; new code 89%; both exceed the 80%
   gate. Global coverage is reported without hidden omissions (79%).
@@ -19,7 +19,7 @@ Validation date: 2026-08-02.
   prediction all succeeded outside the checkout.
 - The delivered runtime dependency tree has no known vulnerabilities according
   to `pip-audit`. Private/local packages are recorded as unauditable by PyPI.
-- `dist/sbom-python.cdx.json` is a generated CycloneDX runtime SBOM.
+- CI generates a CycloneDX runtime SBOM for every published revision.
 - `git diff --check` passes.
 
 ## Infrastructure homologation
@@ -60,4 +60,17 @@ zero CRITICAL, and zero Python findings. No vulnerability was ignored,
 allowlisted, or reclassified during this remediation. Full evidence and the
 per-CVE action table are in `artifacts/security/SECURITY_REMEDIATION.md`.
 
-All acceptance criteria are now satisfied. Homologated status: `READY`.
+The 2026-08-09 local release audit additionally reproduced the sealed cutoff
+database (`747b0907...72b40`, 17,169 matches), H1 (Brier 0.4537, accuracy 62.3%)
+and H2 (Brier 0.4525, DM p=0.00324) in read-only mode. A clean external virtual
+environment installed `cs-predictor==3.0.1`, `predictor-core==2.2.0`, and
+`predictor-ops==3.0.0`; plugin discovery and scheduler validation passed.
+Settlement remained fail-closed and prediction/ingestion remained laboratory-only.
+
+The local Docker daemon was unavailable during this release audit. Container
+build, smoke, SBOM, and vulnerability gates therefore remain authoritative in
+GitHub Actions; the earlier Docker 26 homologation above remains historical
+evidence, not a claim that the current image was built locally.
+
+Homologated status: `READY`, subject to the required green CI run for the exact
+published commit.

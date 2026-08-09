@@ -5,7 +5,26 @@ import subprocess
 import tomllib
 from pathlib import Path
 
+from src.plugin import CsPredictorPlugin
+
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_release_version_and_shared_dependencies_do_not_drift():
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+    assert project["version"] == "3.0.1"
+    assert CsPredictorPlugin.version == project["version"]
+
+    expected_urls = {
+        "https://github.com/leonardosovienski/core-predictor/releases/download/v2.2.0/predictor_core-2.2.0-py3-none-any.whl",
+        "https://github.com/leonardosovienski/tools-predictor/releases/download/v3.0.0/predictor_ops-3.0.0-py3-none-any.whl",
+    }
+    for relative_path in ("Dockerfile", ".github/workflows/ci.yml"):
+        contents = (ROOT / relative_path).read_text(encoding="utf-8")
+        for url in expected_urls:
+            assert url in contents
+        assert "releases/download/v2.1.0/predictor_core-2.1.0" not in contents
+        assert "releases/download/v2.0.1/predictor_ops-2.0.1" not in contents
 
 
 def test_no_code_file_is_gitignored():

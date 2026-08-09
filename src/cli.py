@@ -49,7 +49,10 @@ def ingest_main(argv: list[str] | None = None) -> int:
     parser.add_argument("--laboratory", action="store_true")
     args = parser.parse_args(argv)
     if not _laboratory_enabled(args.laboratory):
-        print("cs-ingest-hltv is laboratory-only; use --laboratory or CS_LABORATORY=1", file=sys.stderr)
+        print(
+            "cs-ingest-hltv is laboratory-only; use --laboratory or CS_LABORATORY=1",
+            file=sys.stderr,
+        )
         return 2
     count = sum(len(page) for page in HltvProvider().fetch_results(args.until_date))
     print(json.dumps({"state": "SUCCEEDED", "events": count}))
