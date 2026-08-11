@@ -1,0 +1,29 @@
+{
+  "metric_rule": "round((1.0 - winner_probability) ** 2, 8)",
+  "observed": {
+    "maps": [
+      {"name": "A", "score_a": 13, "score_b": 9},
+      {"name": "B", "score_a": 9, "score_b": 13},
+      {"name": "C", "score_a": 13, "score_b": 8}
+    ],
+    "score": {"team_a": 2, "team_b": 1},
+    "winner": "Vitality"
+  },
+  "prediction": {"team_a": 0.6432, "team_b": 0.3568},
+  "record": {
+    "cutoff_at": "2030-01-02T12:00:00Z",
+    "event_start_at": "2030-01-02T12:00:00Z",
+    "matured_at": "2030-01-02T17:00:00Z",
+    "matures_at": "2030-01-02T16:00:00Z",
+    "metric_name": "winner_brier",
+    "metric_scale": "cs-native-winning-outcome-squared-error",
+    "metric_value": 0.12730624,
+    "predicted_at": "2030-01-01T10:00:00Z",
+    "prediction_id": "p4-cs-synthetic-bo3",
+    "prediction_payload_hash": "d6a8b2246f138713418cd3e10856467011b408e6a6f6a989b9a98ea753195e45",
+    "result_available_at": "2030-01-02T16:00:00Z",
+    "result_payload_hash": "0705f36ef7e802b5ce41fda43096395a261aafe72f1316a6544ae3f1ae677117",
+    "schema_version": "p4-cs-temporal-experiment/1"
+  },
+  "tolerance": 1e-12
+}
