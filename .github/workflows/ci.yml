@@ -7,6 +7,9 @@ permissions:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: "${{ matrix.python }}"
+      UV_PROJECT_ENVIRONMENT: "${{ github.workspace }}/../cs-predictor-${{ matrix.python }}"
     strategy:
       fail-fast: false
       matrix:
@@ -20,16 +23,20 @@ jobs:
         with:
           version: "0.11.15"
       - run: uv python install ${{ matrix.python }}
-      - run: uv sync --frozen --extra dev
-      - run: uv run ruff check src/cli.py src/event_store.py src/model.py src/observability.py src/plugin.py src/scheduler.py src/services.py src/settings.py src/transports.py src/upstream.py scripts/backtest_walkforward.py
-      - run: uv run ruff format --check src/cli.py src/event_store.py src/model.py src/observability.py src/plugin.py src/scheduler.py src/services.py src/settings.py src/transports.py src/upstream.py scripts/backtest_walkforward.py
-      - run: uv run pyright
-      - run: uv run pytest -W error::ResourceWarning --cov=src --cov-branch --cov-report=term-missing --cov-report=xml:coverage-global.xml
+      - run: uv sync --frozen --extra dev --python "${{ matrix.python }}"
+      - name: Verify matrix interpreter
+        run: |
+          uv python find "${{ matrix.python }}"
+          uv run --python "${{ matrix.python }}" python -c "import sys; expected=tuple(map(int, '${{ matrix.python }}'.split('.'))); print(sys.executable); print(sys.version); assert sys.version_info[:2] == expected, (sys.version_info[:2], expected)"
+      - run: uv run --python "${{ matrix.python }}" ruff check src/cli.py src/event_store.py src/model.py src/observability.py src/plugin.py src/scheduler.py src/services.py src/settings.py src/transports.py src/upstream.py scripts/backtest_walkforward.py
+      - run: uv run --python "${{ matrix.python }}" ruff format --check src/cli.py src/event_store.py src/model.py src/observability.py src/plugin.py src/scheduler.py src/services.py src/settings.py src/transports.py src/upstream.py scripts/backtest_walkforward.py
+      - run: uv run --python "${{ matrix.python }}" pyright
+      - run: uv run --python "${{ matrix.python }}" pytest -W error::ResourceWarning --cov=src --cov-branch --cov-report=term-missing --cov-report=xml:coverage-global.xml
       - name: homologated runtime coverage
-        run: uv run pytest --cov=src.archival_collection --cov=src.beyond_market_closure --cov=src.cli --cov=src.data.hltv_provider --cov=src.event_store --cov=src.observability --cov=src.plugin --cov=src.scheduler --cov=src.services --cov=src.settings --cov=src.transports --cov=src.upstream --cov-branch --cov-fail-under=80 --cov-report=term
+        run: uv run --python "${{ matrix.python }}" pytest --cov=src.archival_collection --cov=src.beyond_market_closure --cov=src.cli --cov=src.data.hltv_provider --cov=src.event_store --cov=src.observability --cov=src.plugin --cov=src.scheduler --cov=src.services --cov=src.settings --cov=src.transports --cov=src.upstream --cov-branch --cov-fail-under=80 --cov-report=term
       - name: new code coverage
-        run: uv run pytest tests/test_modernization_contracts.py tests/test_hltv_resilience.py tests/test_market_shadow_governance.py tests/test_scheduler.py tests/test_database_isolation.py tests/test_supply_chain.py --cov=src.cli --cov=src.event_store --cov=src.observability --cov=src.plugin --cov=src.scheduler --cov=src.services --cov=src.settings --cov=src.transports --cov=src.upstream --cov-branch --cov-fail-under=80 --cov-report=term
-      - run: uv build
+        run: uv run --python "${{ matrix.python }}" pytest tests/test_modernization_contracts.py tests/test_hltv_resilience.py tests/test_market_shadow_governance.py tests/test_scheduler.py tests/test_database_isolation.py tests/test_supply_chain.py --cov=src.cli --cov=src.event_store --cov=src.observability --cov=src.plugin --cov=src.scheduler --cov=src.services --cov=src.settings --cov=src.transports --cov=src.upstream --cov-branch --cov-fail-under=80 --cov-report=term
+      - run: uv build --python "${{ matrix.python }}"
       - name: wheel smoke outside checkout
         run: |
           uv venv /tmp/cs-wheel --python ${{ matrix.python }} --seed
@@ -37,12 +44,13 @@ jobs:
             "predictor-core @ https://github.com/leonardosovienski/core-predictor/releases/download/v2.2.1/predictor_core-2.2.1-py3-none-any.whl" \
             "predictor-ops @ https://github.com/leonardosovienski/tools-predictor/releases/download/v3.0.0/predictor_ops-3.0.0-py3-none-any.whl"
           cd /tmp
+          /tmp/cs-wheel/bin/python -c "import sys; expected=tuple(map(int, '${{ matrix.python }}'.split('.'))); print(sys.executable); print(sys.version); assert sys.version_info[:2] == expected, (sys.version_info[:2], expected)"
           /tmp/cs-wheel/bin/cs-predictor health
           /tmp/cs-wheel/bin/cs-scheduler --validate
       - name: audit delivered runtime
-        run: uv run pip-audit --path /tmp/cs-wheel/lib/python${{ matrix.python }}/site-packages
+        run: uv run --python "${{ matrix.python }}" pip-audit --path /tmp/cs-wheel/lib/python${{ matrix.python }}/site-packages
       - name: runtime SBOM
-        run: uv run cyclonedx-py environment /tmp/cs-wheel/bin/python --output-format JSON --output-file sbom-python.cdx.json
+        run: uv run --python "${{ matrix.python }}" cyclonedx-py environment /tmp/cs-wheel/bin/python --output-format JSON --output-file sbom-python.cdx.json
   container:
     runs-on: ubuntu-latest
     steps:
