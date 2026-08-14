@@ -5,7 +5,8 @@ import threading
 from predictor_ops import JobConfig, RunStatus, run_job
 from predictor_ops.runtime import LocalBackend
 
-from src.scheduler import execute, load_collection_job, main
+from src.config import ROOT
+from src.scheduler import SHADOW_JOB_IDS, execute, load_collection_job, load_job, main
 from src.settings import Settings
 
 
@@ -37,6 +38,33 @@ def test_declarative_job_and_manual_execution_without_systemd(tmp_path, capsys):
     capsys.readouterr()
     assert main(["--validate"]) == 0
     assert json.loads(capsys.readouterr().out)["valid"] is True
+
+
+def test_shadow_jobs_are_declared_with_checkout_cwd_and_no_capital(tmp_path):
+    cfg = scheduler_settings(tmp_path)
+    assert SHADOW_JOB_IDS == {
+        "cs-market-shadow-collect",
+        "cs-market-shadow-import",
+        "cs-market-shadow-settle",
+    }
+    for job_id in SHADOW_JOB_IDS:
+        job = load_job(job_id, settings=cfg)
+        assert job.id == job_id
+        assert job.cwd == ROOT
+        assert job.provenance["mode"] == "SHADOW_ONLY_NO_CAPITAL"
+        assert job.scientific_state == "REOPENED_BY_HUMAN_DECISION_SHADOW_ONLY"
+        assert "market.db" not in " ".join(job.command)
+        assert (ROOT / job.command[-1]).exists()
+
+
+def test_cli_validate_accepts_a_shadow_job_id(capsys, monkeypatch, tmp_path):
+    monkeypatch.chdir(ROOT)
+    capsys.readouterr()
+    assert main(["--job", "cs-market-shadow-collect", "--validate"]) == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "valid": True,
+        "job": "cs-market-shadow-collect",
+    }
 
 
 def test_lock_idempotency_timeout_and_shutdown(tmp_path):

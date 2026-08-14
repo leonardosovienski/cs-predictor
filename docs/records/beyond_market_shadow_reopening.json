@@ -1,0 +1,27 @@
+{
+  "schema_version": "cs-beyond-market-reopening/1.0",
+  "scientific_status": "REOPENED_BY_HUMAN_DECISION_SHADOW_ONLY",
+  "operational_status": "SHADOW_ONLY_NO_CAPITAL",
+  "reopened_at_utc": "2026-08-14T00:00:00Z",
+  "reopening_decision": {
+    "authorized_by": "Leonardo Sovienski (leonardo.sovienski@volvo.com), dono do projeto, em sessao registrada de agente",
+    "reason": "A coorte de 2026-07-23 foi encerrada antes de atingir a amostra minima (0/50 liquidacoes maturadas, 2/30 dias corridos). Beyond Market nunca foi aprovado nem refutado; a decisao humana agora e retomar SOMENTE a coleta e liquidacao em papel (shadow) ate atingir a amostra minima definida no proprio encerramento anterior.",
+    "scope": "Coleta read-only de cotacoes Polymarket, mapeamento de eventos, e liquidacao em PAPEL (prospective_settlements) para calcular Brier/CLV/log loss da coorte. Nenhuma ordem, nenhum settlement financeiro, nenhum uso de capital.",
+    "explicit_non_authorizations": [
+      "capital real (record_bet(real=True) permanece bloqueado incondicionalmente)",
+      "cs-settle (liquidacao financeira via CLI) permanece bloqueado incondicionalmente",
+      "escrita na producao data/market.db (permanece exclusivamente sob o encerramento de 2026-07-23)",
+      "qualquer promocao automatica de GATE_PASSED_FOR_PROSPECTIVE_SHADOW para autorizacao de capital"
+    ]
+  },
+  "supersedes_commit": "3f981acc68a43f9b50bd68266832d80cc5a6e96e",
+  "prior_closure_preserved_at": "docs/records/beyond_market_closure.json",
+  "prior_closure_status": "immutable historical evidence; unchanged by this record",
+  "shadow_market_db": "data/market_shadow.db",
+  "reopening_criteria_unchanged": {
+    "required_matured_matches": 50,
+    "required_calendar_days": 30,
+    "note": "Atingir esses numeros em shadow NAO autoriza capital; apenas informa uma nova decisao humana futura, que exigira novo registro versionado."
+  },
+  "real_money": "Permanece bloqueada permanentemente por este registro; nenhum caminho de codigo neste repositorio pode habilitar capital real."
+}

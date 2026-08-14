@@ -52,16 +52,22 @@ class CsPredictorPlugin:
             "extra": {
                 "collection_modes": ["file", "object-storage", "queue"],
                 "settlement": "disabled-closed-by-human-decision",
-                "market_shadow": False,
+                "market_shadow": True,
+                "market_shadow_scope": "SHADOW_ONLY_NO_CAPITAL",
                 "trading": False,
             },
             # Backward-compatible fields used by the domain's existing CLI/tests.
             "prediction": True,
             "collection": ["file", "object-storage", "queue"],
             "settlement": "disabled-closed-by-human-decision",
-            "market_shadow": False,
+            "market_shadow": True,
             "trading": False,
+            # Capital/settlement status: unchanged, permanently closed.
             "scientific_status": "CLOSED_BY_HUMAN_DECISION",
+            # Shadow collection status: separate gate, reopened 2026-08-14 by
+            # docs/records/beyond_market_shadow_reopening.json. Never implies
+            # capital authorization.
+            "market_shadow_scientific_status": "REOPENED_BY_HUMAN_DECISION_SHADOW_ONLY",
         }
 
     def metadata(self) -> dict[str, Any]:

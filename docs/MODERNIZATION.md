@@ -12,7 +12,21 @@ Sports data uses `CS_SPORTS_DB_URL`; market evidence uses a distinct
 `CS_MARKET_DB_URL`. Startup rejects equal URLs. Market-shadow executable code
 was moved unchanged to `docs/evidence/market_shadow`; the signed closure record
 remains in `docs/records/beyond_market_closure.json`. No operational setting can
-change `CLOSED_BY_HUMAN_DECISION`.
+change `CLOSED_BY_HUMAN_DECISION`, and this never changes for capital.
+
+On 2026-08-14, collection- and paper-settlement-only code (`src/market_db.py`,
+`src/prospective_market.py`, `src/data/polymarket_provider.py`, and the
+`scripts/collect_polymarket_*`, `import_market_quotes.py`,
+`settle_prospective_market.py`, `market_shadow_status.py`,
+`validate_beyond_market.py` scripts) was restored from that evidence directory
+under a separate, additional human-decision record,
+`docs/records/beyond_market_shadow_reopening.json`
+(`REOPENED_BY_HUMAN_DECISION_SHADOW_ONLY`). It writes only to
+`data/market_shadow.db`, gated by `assert_market_shadow_collection_open()` — a
+distinct function from `assert_beyond_market_open()`, which remains
+unconditional and untouched for `data/market.db` and all real-money paths
+(`record_bet(real=True)`, `cs-settle`). `scripts/migrate_prospective_market.py`
+and the Windows Task Scheduler installer were deliberately not restored.
 
 The upstream contract is `schemas/upstream-event-v1.schema.json`. File, object
 storage, and queue adapters validate the same Pydantic model before persistence.
@@ -30,7 +44,10 @@ shared release publishes those contracts.
 
 ## Migration
 
-1. Stop and remove legacy Task Scheduler jobs; never recreate market shadow.
+1. Stop and remove legacy Task Scheduler jobs; never recreate them. Market
+   shadow collection/paper-settlement may run again only via `predictor_ops`
+   jobs (`jobs.json`/`cs-scheduler`) and only under the shadow-reopening
+   record — real capital is a separate, permanently closed gate.
 2. Install the wheel plus shared wheels in a clean Python 3.13 environment.
 3. Configure separate database URLs and one upstream transport.
 4. Validate/replay upstream input; duplicate keys are ignored.

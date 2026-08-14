@@ -1,8 +1,16 @@
 # Sports DB, Market DB e Beyond Market
 
-> **Estado canonico:** `market.db` e seu lifecycle estao preservados apenas
-> como evidencia historica. O repositorio opera em COLLECTION_ONLY: nenhuma
-> mutacao, coleta, importacao, settlement ou avaliacao Beyond Market e aceita.
+> **Estado canonico (atualizado 2026-08-14):** `data/market.db` (producao) e
+> seu lifecycle permanecem preservados como evidencia historica e
+> permanentemente fechados a capital: nenhuma mutacao, settlement financeiro
+> ou avaliacao que autorize dinheiro real e aceita, sob nenhuma circunstancia.
+> Por decisao humana separada e versionada
+> (`docs/records/beyond_market_shadow_reopening.json`), a coleta e a
+> liquidacao EM PAPEL foram reabertas num banco distinto,
+> `data/market_shadow.db`, exclusivamente para completar a amostra minima que
+> o encerramento de 2026-07-23 exigia e nao atingiu. Este documento descreve
+> o contrato de dados; ele vale igualmente para `market.db` (fechado) e
+> `market_shadow.db` (shadow), exceto onde dito o contrario.
 
 ## Separação obrigatória
 
@@ -47,14 +55,32 @@ de uma partida candidata são rejeitados.
 
 ## Beyond Market e gates
 
-### Encerramento humano da coorte de 2026-07-23
+### Encerramento humano da coorte de 2026-07-23 (capital — permanente)
 
 Esta coorte esta `CLOSED_BY_HUMAN_DECISION`, com operacao real `NO_GO`. Foi
 encerrada antes de atingir 50 settlements e 30 dias prospectivos; nao equivale
 a aprovacao ou refutacao cientifica. O registro versionado e auditavel esta em
-`docs/records/beyond_market_closure.json`. Enquanto ele existir, coleta,
-atualizacao de resultado, settlement, status operacional e avaliacao Beyond
-Market falham fechados. Reabertura exige nova decisao humana auditavel.
+`docs/records/beyond_market_closure.json`. Enquanto ele existir — e ele nunca
+e removido —, `assert_beyond_market_open()` falha fechado
+incondicionalmente para `data/market.db` e para capital real
+(`record_bet(real=True)`, `cs-settle`). Nada neste documento reabre essa
+trava; ela e permanente.
+
+### Reabertura shadow-only de 2026-08-14 (coleta e liquidacao em papel)
+
+Por decisao humana explicita e SEPARADA, registrada em
+`docs/records/beyond_market_shadow_reopening.json`
+(`REOPENED_BY_HUMAN_DECISION_SHADOW_ONLY` / `SHADOW_ONLY_NO_CAPITAL`), a
+coleta Polymarket e a liquidacao EM PAPEL foram reabertas contra um banco
+fisicamente distinto, `data/market_shadow.db`. O portao de codigo e outro —
+`assert_market_shadow_collection_open()` — e nunca relaxa
+`assert_beyond_market_open()`: mesmo com a reabertura shadow valida, o portao
+de capital continua recusando `data/market.db` incondicionalmente. A
+reabertura exige os tres campos auditaveis (`reopened_at_utc`,
+`reopening_decision`, `supersedes_commit`); qualquer campo ausente falha
+fechado, exatamente como o encerramento original. Atingir a amostra minima em
+shadow (50 liquidacoes / 30 dias) nao autoriza capital — apenas informaria uma
+decisao humana futura, com novo registro versionado proprio.
 
 O validador divide por tempo: treina o blend mercado+modelo numa janela anterior
 e mede log loss, Brier e acerto em janela posterior. Compara mercado, modelo e
