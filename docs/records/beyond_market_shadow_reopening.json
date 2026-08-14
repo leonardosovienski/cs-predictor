@@ -6,7 +6,8 @@
   "reopening_decision": {
     "authorized_by": "Leonardo Sovienski (leonardo.sovienski@volvo.com), dono do projeto, em sessao registrada de agente",
     "reason": "A coorte de 2026-07-23 foi encerrada antes de atingir a amostra minima (0/50 liquidacoes maturadas, 2/30 dias corridos). Beyond Market nunca foi aprovado nem refutado; a decisao humana agora e retomar SOMENTE a coleta e liquidacao em papel (shadow) ate atingir a amostra minima definida no proprio encerramento anterior.",
-    "scope": "Coleta read-only de cotacoes Polymarket, mapeamento de eventos, e liquidacao em PAPEL (prospective_settlements) para calcular Brier/CLV/log loss da coorte. Nenhuma ordem, nenhum settlement financeiro, nenhum uso de capital.",
+    "scope": "Coleta read-only de cotacoes Polymarket, mapeamento de eventos, e liquidacao em PAPEL (prospective_settlements) para calcular Brier/log-loss do modelo contra a ultima cotacao Polymarket pre-evento. Nenhuma ordem, nenhum settlement financeiro, nenhum uso de capital.",
+    "scope_correction_2026_08_14": "O termo original desta linha citava 'CLV', o que superestimava a metodologia: a referencia usada e a ultima cotacao do proprio Polymarket antes do inicio (closing_definition_version='last-valid-pre-event/1'), nao uma closing line externa, independente e liquida. CLV verdadeiro exigiria essa segunda fonte, que nao existe nesta coorte. Ver ProspectiveStore.status()['clv_available'] (sempre false).",
     "explicit_non_authorizations": [
       "capital real (record_bet(real=True) permanece bloqueado incondicionalmente)",
       "cs-settle (liquidacao financeira via CLI) permanece bloqueado incondicionalmente",
