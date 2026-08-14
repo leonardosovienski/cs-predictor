@@ -11,6 +11,39 @@
       "provenance_mode": "strict",
       "scientific_state": "COLLECTION_ONLY",
       "exit_statuses": {"0": "SUCCEEDED", "2": "SOURCE_UNAVAILABLE"}
+    },
+    {
+      "id": "cs-market-shadow-collect",
+      "command": ["{python}", "scripts/collect_polymarket_upcoming.py"],
+      "timeout_seconds": 300,
+      "heartbeat_interval_seconds": 15,
+      "max_output_bytes": 1048576,
+      "provenance": {"domain": "cs", "mode": "SHADOW_ONLY_NO_CAPITAL"},
+      "provenance_mode": "strict",
+      "scientific_state": "REOPENED_BY_HUMAN_DECISION_SHADOW_ONLY",
+      "exit_statuses": {"0": "SUCCEEDED", "2": "PARTIAL"}
+    },
+    {
+      "id": "cs-market-shadow-import",
+      "command": ["{python}", "scripts/import_market_quotes.py"],
+      "timeout_seconds": 180,
+      "heartbeat_interval_seconds": 15,
+      "max_output_bytes": 1048576,
+      "provenance": {"domain": "cs", "mode": "SHADOW_ONLY_NO_CAPITAL"},
+      "provenance_mode": "strict",
+      "scientific_state": "REOPENED_BY_HUMAN_DECISION_SHADOW_ONLY",
+      "exit_statuses": {"0": "SUCCEEDED"}
+    },
+    {
+      "id": "cs-market-shadow-settle",
+      "command": ["{python}", "scripts/settle_prospective_market.py"],
+      "timeout_seconds": 300,
+      "heartbeat_interval_seconds": 15,
+      "max_output_bytes": 1048576,
+      "provenance": {"domain": "cs", "mode": "SHADOW_ONLY_NO_CAPITAL"},
+      "provenance_mode": "strict",
+      "scientific_state": "REOPENED_BY_HUMAN_DECISION_SHADOW_ONLY",
+      "exit_statuses": {"0": "SUCCEEDED", "1": "PARTIAL"}
     }
   ]
 }

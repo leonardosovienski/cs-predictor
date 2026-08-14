@@ -10,16 +10,26 @@ diferencial confirmou compatibilidade exata com os 1.233 ratings canônicos.
 
 ## Situação atual
 
-O único modo operacional autorizado é **`COLLECTION_ONLY`**. O único job de
-produção permitido é `cs-archival-collection`, que arquiva eventos esportivos
-sem consultar mercados, executar apostas ou promover a coleta a evidência
-científica.
+O modo operacional de produção esportiva é **`COLLECTION_ONLY`**: o job
+`cs-archival-collection` arquiva eventos esportivos sem consultar mercados,
+executar apostas ou promover a coleta a evidência científica.
 
-O experimento Beyond Market permanece permanentemente
-**`CLOSED_BY_HUMAN_DECISION`** e `NO_GO`. Coleta de odds, market shadow,
-settlement de mercado, ordens e uso de capital não são operações permitidas.
-O registro dessa decisão está em
-[`docs/records/beyond_market_closure.json`](docs/records/beyond_market_closure.json).
+Capital real permanece permanentemente **`CLOSED_BY_HUMAN_DECISION`** e
+`NO_GO`: ordens, settlement financeiro e uso de capital não são operações
+permitidas em nenhuma circunstância. O registro original dessa decisão está em
+[`docs/records/beyond_market_closure.json`](docs/records/beyond_market_closure.json)
+e nunca é alterado.
+
+Em 2026-08-14, por decisão humana explícita e separada, a **coleta e a
+liquidação em papel** do Beyond Market foram reabertas em modo
+**`REOPENED_BY_HUMAN_DECISION_SHADOW_ONLY`** — só para completar a amostra
+mínima que o encerramento de 2026-07-23 definiu e nunca atingiu (50
+liquidações maturadas / 30 dias corridos; 0/50 e 2/30 quando fechou). Isso
+não reabre capital: é um portão de código separado
+(`assert_market_shadow_collection_open`) que nunca toca o portão de capital
+(`assert_beyond_market_open`), e que só grava em `data/market_shadow.db` —
+nunca na produção `data/market.db`. Ver
+[`docs/records/beyond_market_shadow_reopening.json`](docs/records/beyond_market_shadow_reopening.json).
 A declaração operacional completa está em
 [`docs/CURRENT_OPERATIONAL_STATE.md`](docs/CURRENT_OPERATIONAL_STATE.md).
 
@@ -104,7 +114,9 @@ regenere-os sobre o banco cujo SHA-256 consta no protocolo de cutoff.
 Produção:
 
 - `cs-collect`: coleta arquivística a partir do transporte configurado;
-- `cs-scheduler`: executa exclusivamente `cs-archival-collection`;
+- `cs-scheduler`: `cs-archival-collection` (esportivo) ou, sob a reabertura
+  shadow, `cs-market-shadow-collect` / `cs-market-shadow-import` /
+  `cs-market-shadow-settle` (`--job <id>`);
 - `cs-predictor health`: informa saúde e estado de governança.
 
 Laboratório, sem autorização de produção:
@@ -114,9 +126,24 @@ Laboratório, sem autorização de produção:
 - `python -m src.ingest_hltv`: rematerialização do Sports DB;
 - scripts em `scripts/`: replay, calibração, simulação e avaliação.
 
+Beyond Market shadow (reaberto 2026-08-14, `SHADOW_ONLY_NO_CAPITAL`, nunca
+capital real):
+
+- `scripts/collect_polymarket_upcoming.py` / `collect_polymarket_shadow.py`:
+  coleta read-only de moneylines CS no Polymarket;
+- `scripts/import_market_quotes.py`: importa o JSONL coletado para
+  `data/market_shadow.db`;
+- `scripts/settle_prospective_market.py`: liquidação EM PAPEL contra o
+  resultado oficial do Sports DB (Brier/CLV, não dinheiro);
+- `scripts/market_shadow_status.py`: progresso rumo à amostra mínima
+  (50 liquidações / 30 dias);
+- `scripts/validate_beyond_market.py`: comparação temporal mercado x modelo,
+  sempre com `financial_capital_authorized: false`.
+
 `CS_LABORATORY=1` pode substituir a flag em ambientes de laboratório
 controlados. `cs-settle` é mantido apenas para compatibilidade: sempre informa
-`CLOSED_BY_HUMAN_DECISION` e retorna código 2, sem executar settlement.
+`CLOSED_BY_HUMAN_DECISION` e retorna código 2, sem executar settlement
+financeiro — isso não muda com a reabertura shadow.
 
 ## Arquitetura
 
