@@ -134,7 +134,10 @@ capital real):
 - `scripts/import_market_quotes.py`: importa o JSONL coletado para
   `data/market_shadow.db`;
 - `scripts/settle_prospective_market.py`: liquidação EM PAPEL contra o
-  resultado oficial do Sports DB (Brier/CLV, não dinheiro);
+  resultado oficial do Sports DB (Brier/log-loss do modelo vs. a última
+  cotação Polymarket pré-evento, não dinheiro — isso **não** é CLV, que
+  exigiria uma closing line externa, independente e líquida; ver
+  `clv_available: false` em `market_shadow_status.py`);
 - `scripts/market_shadow_status.py`: progresso rumo à amostra mínima
   (50 liquidações / 30 dias);
 - `scripts/validate_beyond_market.py`: comparação temporal mercado x modelo,

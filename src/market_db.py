@@ -199,6 +199,11 @@ CREATE TABLE IF NOT EXISTS market_quotes (
   PRIMARY KEY(provider, source_market_id, selection, captured_at)
 );
 CREATE INDEX IF NOT EXISTS idx_market_quotes_event ON market_quotes(canonical_event_id, captured_at);
+-- Schema reservado para roster point-in-time; NENHUM ingestor popula esta
+-- tabela hoje (2026-08-14). `roster_snapshot_id` em `SportsSeries` e nas
+-- linhas prospectivas fica sempre NULL até que exista um pipeline real de
+-- captura de roster com timestamp (não confundir "coluna existe" com
+-- "roster está implementado").
 CREATE TABLE IF NOT EXISTS roster_snapshots (
   roster_snapshot_id TEXT PRIMARY KEY, team_id TEXT NOT NULL, known_at TEXT NOT NULL,
   source TEXT NOT NULL, players_json TEXT NOT NULL, provenance_hash TEXT NOT NULL

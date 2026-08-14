@@ -1,9 +1,16 @@
 """Liquidação EM PAPEL da coorte shadow: resultado oficial (Sports DB) -> Market DB shadow.
 
-Isto é liquidação científica (Brier/CLV/log loss), não financeira: nunca move
-capital, nunca chama `record_bet(real=True)` e nunca escreve em `data/market.db`
-(que permanece exclusivamente sob o encerramento de 2026-07-23). Grava apenas em
+Isto é liquidação científica (Brier/log-loss do modelo contra a última cotação
+Polymarket pré-evento), não financeira: nunca move capital, nunca chama
+`record_bet(real=True)` e nunca escreve em `data/market.db` (que permanece
+exclusivamente sob o encerramento de 2026-07-23). Grava apenas em
 `data/market_shadow.db`, sob o gate `SHADOW_ONLY_NO_CAPITAL`.
+
+Correção de nomenclatura (2026-08-14): a cotação usada como referência de
+"closing" é a última observação do próprio Polymarket antes do início — não
+uma closing line externa, independente e líquida. Isso mede divergência
+modelo-mercado (Brier/log-loss), não CLV verdadeiro. Ver
+`ProspectiveStore.status()["clv_available"]` (sempre `False`).
 
 O resultado oficial vem do Sports DB (`data/cs.db`, alimentado por
 `src.ingest_hltv`). Este script NÃO inventa resultado: evento sem partida

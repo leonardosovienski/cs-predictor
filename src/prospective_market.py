@@ -113,7 +113,8 @@ CREATE TABLE IF NOT EXISTS prospective_quotes (
   market_type TEXT NOT NULL, market_scope TEXT NOT NULL, selection_a_odds REAL,
   selection_b_odds REAL, probability_a REAL, probability_b REAL, max_spread REAL,
   model_probability_a REAL NOT NULL, model_probability_b REAL NOT NULL, ratings_sha256 TEXT NOT NULL,
-  ingestion_batch_id TEXT NOT NULL, provenance_hash TEXT NOT NULL, data_quality_status TEXT NOT NULL
+  ingestion_batch_id TEXT NOT NULL, provenance_hash TEXT NOT NULL, data_quality_status TEXT NOT NULL,
+  liquidity REAL
 );
 CREATE TABLE IF NOT EXISTS prospective_results (
   event_key TEXT PRIMARY KEY, winner TEXT NOT NULL, result_json TEXT NOT NULL,
@@ -132,13 +133,25 @@ CREATE TABLE IF NOT EXISTS prospective_settlements (
 """
 
 
+def _migrate_add_liquidity_column(conn: sqlite3.Connection) -> None:
+    """Bancos shadow criados antes desta coluna existir não têm `liquidity`;
+    ALTER TABLE idempotente evita perder cotações já coletadas no disco do
+    operador (nunca recriamos o banco por baixo dele)."""
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(prospective_quotes)")}
+    if "liquidity" not in columns:
+        conn.execute("ALTER TABLE prospective_quotes ADD COLUMN liquidity REAL")
+        conn.commit()
+
+
 class ProspectiveStore:
     def __init__(self, path: str | Path): self.path = Path(path)
     def connect(self) -> sqlite3.Connection:
         self._assert_open()
         self.path.parent.mkdir(parents=True, exist_ok=True)
         c = sqlite3.connect(self.path); c.execute("PRAGMA journal_mode=WAL"); c.execute("PRAGMA busy_timeout=5000")
-        c.executescript(PROSPECTIVE_SCHEMA); return c
+        c.executescript(PROSPECTIVE_SCHEMA)
+        _migrate_add_liquidity_column(c)
+        return c
 
     def _assert_open(self) -> None:
         if is_production_market_db(self.path):
@@ -186,12 +199,12 @@ class ProspectiveStore:
                               row["team_a"], row["team_b"], a_id, b_id, row["format"], comp_id, competition,
                               mapping_status, confidence, "mapping/1", reason, now, state))
                 quality = "ELIGIBLE" if mapping_status in ACCEPTED_MAPPING else "REJECTED_MAPPING"
-                conn.execute("""INSERT OR IGNORE INTO prospective_quotes VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                conn.execute("""INSERT OR IGNORE INTO prospective_quotes VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                              (row["quote_id"], event_key, provider, str(row["market_id"]), row["observed_at"],
                               provider if row.get("source_kind") == "prediction_market" else None, "moneyline", "series",
                               row.get("decimal_a"), row.get("decimal_b"), row.get("probability_a"), row.get("probability_b"),
                               row.get("max_spread"), row["model_probability_a"], row["model_probability_b"],
-                              row["ratings_sha256"], batch_id, _hash(row), quality))
+                              row["ratings_sha256"], batch_id, _hash(row), quality, row.get("liquidity")))
                 counts["imported"] += 1
             except (ContractError, ValueError, TypeError): counts["invalid"] += 1
         conn.commit(); return counts
@@ -257,4 +270,11 @@ class ProspectiveStore:
                 "accepted_mappings": sum(1 for _state, mapping, _start in rows if mapping in ACCEPTED_MAPPING),
                 "rejected_legacy_mappings": counts["REJECTED"], "ambiguous_mappings": ambiguous,
                 "decision_ready": matured >= 50 and days >= 30 and ambiguous == 0,
-                "verdict": "PENDING_SETTLEMENT" if matured < 50 else "READY_FOR_BLINDED_EVALUATION"}
+                "verdict": "PENDING_SETTLEMENT" if matured < 50 else "READY_FOR_BLINDED_EVALUATION",
+                # Honestidade metodológica: o settlement usa a última cotação Polymarket
+                # antes do início (`closing_definition_version="last-valid-pre-event/1"`),
+                # não uma closing line externa/independente e líquida. Brier/log-loss
+                # contra essa referência são válidos; CLV verdadeiro não é.
+                "clv_available": False,
+                "market_reference_definition": "last-valid-pre-event/1 (última cotação "
+                "Polymarket antes do início; não é closing line externa/independente)"}
