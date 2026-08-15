@@ -23,7 +23,9 @@ from src.betting import record_bet
 from src.beyond_market_closure import (
     BeyondMarketClosedError,
     assert_beyond_market_open,
+    assert_beyond_market_open_for_root,
     assert_market_shadow_collection_open,
+    assert_market_shadow_collection_open_for_root,
     closure_record,
     is_production_market_db,
     is_shadow_market_db,
@@ -212,3 +214,77 @@ def test_prospective_store_on_shadow_db_requires_valid_reopening(tmp_path, monke
     )
     with pytest.raises(BeyondMarketClosedError):
         ProspectiveStore(tmp_path / "shadow.db").connect()
+
+
+# --- Ramos de falha fechada não exercidos até aqui: cada leitura de registro
+# (encerramento ou reabertura) tem um caminho de arquivo ilegível, um de
+# status incorreto e um de campo ausente. Todos devem falhar fechado.
+
+
+def test_closure_record_unreadable_file_fails_closed(tmp_path):
+    corrompido = tmp_path / "corrompido.json"
+    corrompido.write_text("{nao e json", encoding="utf-8")
+    with pytest.raises(BeyondMarketClosedError, match="ilegível"):
+        closure_record(corrompido)
+
+
+def test_closure_record_wrong_status_fails_closed(tmp_path):
+    errado = tmp_path / "errado.json"
+    errado.write_text(json.dumps({"scientific_status": "ABERTO"}), encoding="utf-8")
+    with pytest.raises(BeyondMarketClosedError, match="inválido"):
+        closure_record(errado)
+
+
+def test_assert_beyond_market_open_for_root_blocks_the_real_checkout():
+    """No checkout real (não um tmp_path de teste), o capital nunca abre."""
+    with pytest.raises(BeyondMarketClosedError):
+        assert_beyond_market_open_for_root(ROOT)
+
+
+def test_shadow_reopening_record_unreadable_file_fails_closed(tmp_path):
+    corrompido = tmp_path / "corrompido.json"
+    corrompido.write_text("{nao e json", encoding="utf-8")
+    with pytest.raises(BeyondMarketClosedError, match="ilegível"):
+        shadow_reopening_record(corrompido)
+
+
+def test_shadow_reopening_record_wrong_status_fails_closed(tmp_path):
+    errado = tmp_path / "errado.json"
+    errado.write_text(json.dumps({"scientific_status": "ABERTO"}), encoding="utf-8")
+    with pytest.raises(BeyondMarketClosedError, match="inválido"):
+        shadow_reopening_record(errado)
+
+
+def test_shadow_collection_blocked_when_closure_evidence_missing(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "src.beyond_market_closure.DEFAULT_CLOSURE_RECORD",
+        tmp_path / "inexistente.json",
+    )
+    with pytest.raises(BeyondMarketClosedError, match="evidência histórica"):
+        assert_market_shadow_collection_open()
+
+
+def test_shadow_collection_blocked_when_closure_evidence_unreadable(tmp_path, monkeypatch):
+    corrompido = tmp_path / "corrompido.json"
+    corrompido.write_text("{nao e json", encoding="utf-8")
+    monkeypatch.setattr("src.beyond_market_closure.DEFAULT_CLOSURE_RECORD", corrompido)
+    with pytest.raises(BeyondMarketClosedError, match="evidência histórica"):
+        assert_market_shadow_collection_open()
+
+
+def test_shadow_collection_blocked_when_closure_evidence_status_tampered(tmp_path, monkeypatch):
+    """Se alguém editar o encerramento original pra mudar o status, o gate
+    shadow bloqueia — não passa a confiar num registro adulterado."""
+    adulterado = tmp_path / "adulterado.json"
+    adulterado.write_text(
+        json.dumps({"scientific_status": "REOPENED_BY_HUMAN_DECISION"}), encoding="utf-8"
+    )
+    monkeypatch.setattr("src.beyond_market_closure.DEFAULT_CLOSURE_RECORD", adulterado)
+    with pytest.raises(BeyondMarketClosedError, match="alterada"):
+        assert_market_shadow_collection_open()
+
+
+def test_shadow_collection_open_for_root_succeeds_on_the_real_checkout():
+    """Caminho feliz de produção: encerramento original íntegro + reabertura
+    shadow válida presentes no checkout real abrem a coleta shadow."""
+    assert_market_shadow_collection_open_for_root(ROOT)  # não levanta
