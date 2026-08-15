@@ -1,5 +1,70 @@
 # HANDOFF.md — cs-predictor
 
+> ## REABERTURA SHADOW-ONLY + CORREÇÃO DE ROTULAGEM CLV + COBERTURA DE TESTE (2026-08-14/15)
+>
+> Por decisão humana explícita do Leo (sessão de agente registrada), retomada
+> SOMENTE a coleta e a liquidação EM PAPEL do Beyond Market —
+> `REOPENED_BY_HUMAN_DECISION_SHADOW_ONLY` / `SHADOW_ONLY_NO_CAPITAL`,
+> registrada em `docs/records/beyond_market_shadow_reopening.json`. O
+> encerramento original de 2026-07-23 (`docs/records/beyond_market_closure.json`)
+> **não foi tocado** — hash pinado em teste continua estável — e capital real
+> segue permanentemente bloqueado por um portão de código separado
+> (`assert_beyond_market_open`, intocado; `record_bet(real=True)` e
+> `cs-settle` continuam recusando incondicionalmente). A reabertura usa um
+> portão próprio (`assert_market_shadow_collection_open`) e grava só em
+> `data/market_shadow.db`, banco físico distinto de `data/market.db`.
+>
+> Três PRs:
+> - **#13** — reabertura em si: restaura de `docs/evidence/market_shadow/`
+>   (preservado intacto) `market_db.py`, `prospective_market.py`,
+>   `polymarket_provider.py` e os scripts de coleta/import/settle/status;
+>   NÃO restaura `migrate_prospective_market.py` (migração one-shot já
+>   aplicada) nem o instalador PowerShell do Task Scheduler legado. Novos
+>   jobs `cs-market-shadow-collect/-import/-settle` via `predictor_ops`
+>   (`cs-scheduler --job <id>`).
+> - **#14** — correção de rotulagem: o que existia media Brier/log-loss do
+>   modelo contra a **última cotação Polymarket antes do evento**, não uma
+>   closing line externa/independente/líquida — ou seja, não é CLV
+>   verdadeiro. Corrigido no README, nos docstrings dos scripts e no próprio
+>   registro de reabertura (anotado, não apagado). `ProspectiveStore.status()`
+>   agora expõe `clv_available: false` e `market_reference_definition`
+>   explícitos. `liquidity` do order book (já coletada, antes descartada)
+>   passou a ser persistida em `prospective_quotes`, com migração idempotente
+>   (`ALTER TABLE`) para bancos shadow que operadores já tinham em disco.
+> - **#15** — auditoria de cobertura: `official_result()` em
+>   `settle_prospective_market.py` — a lógica de identidade usada pra casar
+>   cotação shadow com resultado oficial, mesma classe do bug real LEO/Leo
+>   corrigido em 2026-07-19 — estava com **0% de teste direto**; suíte de
+>   regressão completa restaurada da evidência. `beyond_market_closure.py`
+>   foi de 76% para 98% de cobertura de branch (todo ramo de falha fechada
+>   agora testado).
+>
+> Deliberadamente fora de escopo, por decisão própria: order/fill ledger,
+> execução real, risco/portfólio integrado, kill switch econômico —
+> infraestrutura de trading sem propósito enquanto capital real está
+> permanentemente fechado. Também fora de escopo por depender de recurso
+> externo que não temos: GRID, segunda fonte de odds licenciada, captura de
+> veto real timestampado, registry de roster povoado (`roster_snapshot_id`
+> existe como coluna reservada em 3 schemas, mas nenhum ingestor a popula).
+>
+> **Estado real da coleta em 14/08** (máquina do Leo): `data/ratings.json`
+> materializado com **1.279 times** a partir de `data/cs.db` (17.799 séries;
+> H1-CS reconfirmada — Brier 0,4553 vs semente 0,5000, acerto 62,2%,
+> DM p<0,0001). Primeira coleta real no Polymarket: 17 partidas encontradas,
+> **12 inseridas**, 5 puladas por time não mapeado ainda (`NIP` ambíguo entre
+> `NIP Impact`/`NIP Legends`; `Privateer Gaming`, `FUT Esports`,
+> `TheMongolz`, `Aurora Gaming` ausentes do universo de ratings). Amostra no
+> dia 1: **0/50 liquidações maturadas, 0/30 dias corridos**. Ciclo diário
+> automatizado via Agendador de Tarefas do Windows
+> (`cs-predictor-market-shadow`, 9h — ingest HLTV incremental + coleta +
+> import + settle + status); script local em
+> `scripts/windows/run_market_shadow_cycle.ps1`, **não versionado** (é
+> automação pessoal de máquina, não parte do pacote).
+>
+> Checkout local atual: `C:\Users\Superleo13\projetos\cs-predictor` — o
+> caminho antigo citado no rodapé deste arquivo não existe mais nesta
+> máquina.
+
 > **Atualização 2026-08-01:** este handoff histórico foi superado pela
 > modernização descrita em `docs/MODERNIZATION.md`. Vendor, imports de workspace,
 > Task Scheduler e runtime de market shadow não fazem mais parte do pacote.

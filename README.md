@@ -143,6 +143,11 @@ capital real):
 - `scripts/validate_beyond_market.py`: comparação temporal mercado x modelo,
   sempre com `financial_capital_authorized: false`.
 
+Agendamento no Windows: `scripts/windows/run_market_shadow_cycle.ps1`
+encadeia ingest HLTV recente + coleta + import + settle + status (cada passo
+tolerante a falha) e documenta o `Register-ScheduledTask` de exemplo no
+próprio arquivo. É automação do operador, não parte do pacote instalável.
+
 `CS_LABORATORY=1` pode substituir a flag em ambientes de laboratório
 controlados. `cs-settle` é mantido apenas para compatibilidade: sempre informa
 `CLOSED_BY_HUMAN_DECISION` e retorna código 2, sem executar settlement
