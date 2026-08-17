@@ -1,5 +1,17 @@
 # COLLECTION_ONLY — handoff para tools
 
+> **Documento histórico / superseded (nota adicionada em 2026-08-17).** A
+> instalação via `powershell -File ..\tools\install_collection_only_tasks.ps1`
+> descrita abaixo depende do repositório irmão `tools`, que
+> [`docs/MODERNIZATION.md`](MODERNIZATION.md) registra como "deliberadamente
+> não restaurado". Esse caminho de instalação não existe mais neste
+> checkout. A operação vigente de coleta arquivística (`cs-archival-collection`)
+> é declarada via `jobs.json`/`cs-scheduler` de `predictor_ops`, conforme a
+> seção "Migration" de `docs/MODERNIZATION.md` e
+> [`docs/CURRENT_OPERATIONAL_STATE.md`](CURRENT_OPERATIONAL_STATE.md). O
+> restante deste documento é preservado como registro arquivístico do desenho
+> original de handoff e não deve ser seguido literalmente.
+
 ## Escopo
 
 `cs-archival-collection` e uma coorte arquivistica CS2 independente. Ela usa

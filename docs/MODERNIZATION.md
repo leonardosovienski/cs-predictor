@@ -1,8 +1,8 @@
 # Modernization contract
 
 Python 3.13 is the production baseline; 3.14 is experimental. `pyproject.toml`
-and `uv.lock` are authoritative. `predictor-core==2.2.1` and
-`predictor-ops==3.0.0` must be installed artifacts, never workspace imports.
+and `uv.lock` are authoritative. `predictor-core==2.3.0` and
+`predictor-ops==3.1.0` must be installed artifacts, never workspace imports.
 Operational outcomes use `RunStatus`; scientific governance uses the separate
 `ScientificState` contract carried opaquely by the runner.
 
@@ -35,7 +35,7 @@ only the local/offline adapter. Idempotency is enforced by the contract key.
 
 ## Shared-contract gap
 
-The published wheels `predictor-core 2.2.1` and `predictor-ops 3.0.0` do not
+The published wheels `predictor-core 2.3.0` and `predictor-ops 3.1.0` do not
 export `PredictorPlugin`, `CollectorPlugin`, `SettlementPlugin`, or
 `HealthProvider`. The domain therefore exports the concrete entry point
 `predictor.plugins: cs = src.plugin:CsPredictorPlugin` but does not duplicate

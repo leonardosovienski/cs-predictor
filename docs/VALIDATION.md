@@ -1,6 +1,17 @@
 # Validation record
 
-Latest validation: 2026-08-09 (`v3.1.0` release candidate).
+Latest full validation: 2026-08-09 (`v3.1.0` release candidate).
+
+> **Doc-currency update (2026-08-17):** the migration to `predictor-core==2.3.0`
+> and `predictor-ops==3.1.0` (commit `e02d9064a6fa6d639d419bbb8e682420d2544e7d`,
+> "Migrate to Core 2.3 and Ops 3.1") landed after the record below was written.
+> The `predictor_core==2.2.1`/`predictor_ops==3.0.0` figures below have been
+> corrected to the versions actually installed today. This edit only fixes
+> stale version numbers; it does not re-run the full infrastructure
+> homologation (Docker/Trivy/Gitleaks/SBOM) described below. As a currency
+> check, `uv run pytest tests/test_supply_chain.py tests/test_modernization_contracts.py`
+> passed cleanly against the current lockfile on 2026-08-17, confirming the
+> installed `predictor-ops` wheel hash and version (`3.1.0`) match `uv.lock`.
 
 ## Green gates
 
@@ -14,7 +25,7 @@ Latest validation: 2026-08-09 (`v3.1.0` release candidate).
 - Wheel and sdist build successfully. The wheel contains `jobs.json`, typed
   configuration defaults, team data, and calibration resources.
 - A fresh external Python 3.13 environment installed the domain wheel plus the
-  published `predictor_core==2.2.1` and `predictor_ops==3.0.0` wheels. Imports were
+  published `predictor_core==2.3.0` and `predictor_ops==3.1.0` wheels. Imports were
   verified under `site-packages`; health, scheduler validation, and a dry-run
   prediction all succeeded outside the checkout.
 - The delivered runtime dependency tree has no known vulnerabilities according
@@ -63,8 +74,8 @@ per-CVE action table are in `artifacts/security/SECURITY_REMEDIATION.md`.
 The 2026-08-09 local release audit additionally reproduced the sealed cutoff
 database (`747b0907...72b40`, 17,169 matches), H1 (Brier 0.4537, accuracy 62.3%)
 and H2 (Brier 0.4525, DM p=0.00324) in read-only mode. A clean external virtual
-environment installed `cs-predictor==3.1.0`, `predictor-core==2.2.1`, and
-`predictor-ops==3.0.0`; plugin discovery and scheduler validation passed.
+environment installed `cs-predictor==3.1.0`, `predictor-core==2.3.0`, and
+`predictor-ops==3.1.0`; plugin discovery and scheduler validation passed.
 Settlement remained fail-closed and prediction/ingestion remained laboratory-only.
 
 The `RatingBook` adoption replay processed all 17,169 canonical series and
