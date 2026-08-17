@@ -1,7 +1,7 @@
 # cs-predictor
 
 Laboratório local de previsão de partidas de Counter-Strike 2 e consumidor dos
-pacotes `predictor-core==2.2.1` e `predictor-ops==3.0.0`. Requer Python 3.13; Python 3.14 é
+pacotes `predictor-core==2.3.0` e `predictor-ops==3.1.0`. Requer Python 3.13; Python 3.14 é
 experimental. Não é uma ferramenta de investimento.
 
 Desde a versão 3.1.0, a atualização de ratings usa o `RatingBook` do core. A

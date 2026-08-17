@@ -22,10 +22,10 @@ def test_predictor_ops_300_is_installed_from_site_packages_and_hash_matches():
     # uv itself enforces this hash on every sync; this test cross-checks that
     # the lockfile still points at the known-good, canonical release.
     assert _locked_wheel_hash("predictor-ops") == (
-        "sha256:9574d5fa4d17232a9d7dbd1aaff0131b65f341974508c5457b8d570bf41e8945"
+        "sha256:490ece696f9173bbaa56c2c53a1ff6e5ffab1a7625fb00ac0a5f896c37081b37"
     )
     dist = distribution("predictor-ops")
-    assert version("predictor-ops") == "3.0.0"
+    assert version("predictor-ops") == "3.1.0"
     assert "site-packages" in str(dist.locate_file("")).replace("\\", "/")
     assert collect_provenance(strict=True)["identity_status"] == "VALIDATED"
 

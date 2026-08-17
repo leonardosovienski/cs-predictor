@@ -16,8 +16,8 @@ def test_release_version_and_shared_dependencies_do_not_drift():
     assert CsPredictorPlugin.version == project["version"]
 
     expected_urls = {
-        "https://github.com/leonardosovienski/core-predictor/releases/download/v2.2.1/predictor_core-2.2.1-py3-none-any.whl",
-        "https://github.com/leonardosovienski/tools-predictor/releases/download/v3.0.0/predictor_ops-3.0.0-py3-none-any.whl",
+        "https://github.com/leonardosovienski/core-predictor/releases/download/v2.3.0/predictor_core-2.3.0-py3-none-any.whl",
+        "https://github.com/leonardosovienski/predictor-ops/releases/download/v3.1.0/predictor_ops-3.1.0-py3-none-any.whl",
     }
     for relative_path in ("Dockerfile", ".github/workflows/ci.yml"):
         contents = (ROOT / relative_path).read_text(encoding="utf-8")
@@ -57,12 +57,12 @@ def test_shared_wheels_match_canonical_hashes_and_are_visible_to_git():
     # The portable, git-visible source of truth is the lockfile itself.
     expected = {
         "predictor-core": (
-            "https://github.com/leonardosovienski/core-predictor/releases/download/v2.2.1/predictor_core-2.2.1-py3-none-any.whl",
-            "sha256:e9ff0783d451ba63f06540ca7e89368b83449953ad3bc005ab777e48d14a9095",
+            "https://github.com/leonardosovienski/core-predictor/releases/download/v2.3.0/predictor_core-2.3.0-py3-none-any.whl",
+            "sha256:e0d29eac348e2be4092dde1b629c101d54973b54b5d43014cdaee69e4e17b3b9",
         ),
         "predictor-ops": (
-            "https://github.com/leonardosovienski/tools-predictor/releases/download/v3.0.0/predictor_ops-3.0.0-py3-none-any.whl",
-            "sha256:9574d5fa4d17232a9d7dbd1aaff0131b65f341974508c5457b8d570bf41e8945",
+            "https://github.com/leonardosovienski/predictor-ops/releases/download/v3.1.0/predictor_ops-3.1.0-py3-none-any.whl",
+            "sha256:490ece696f9173bbaa56c2c53a1ff6e5ffab1a7625fb00ac0a5f896c37081b37",
         ),
     }
     lock = tomllib.loads((ROOT / "uv.lock").read_text(encoding="utf-8"))
