@@ -21,6 +21,15 @@ def _transport(url):
     return {"timestamp": "2030-01-01T10:00:00Z", "bids": [{"price": ".29"}], "asks": [{"price": ".31"}]}
 
 
+def _transport_with_depth(url):
+    payload = _transport(url)
+    if "/book?" in url:
+        payload = {**payload, "hash": "book-hash", "tick_size": ".01", "min_order_size": "5",
+                   "bids": [{**row, "size": "100"} for row in payload["bids"]],
+                   "asks": [{**row, "size": "80"} for row in payload["asks"]]}
+    return payload
+
+
 def test_read_only_pre_event_quote():
     quote = PolymarketProvider(get_json=_transport).fetch_match(
         "Vitality", "MOUZ", event_id="1",
@@ -58,3 +67,14 @@ def test_fetch_match_captures_liquidity_for_shadow_persistence():
         "Vitality", "MOUZ", event_id="1",
         observed_at=datetime(2030, 1, 1, 11, tzinfo=UTC))
     assert quote["liquidity"] == 1000.0
+
+
+def test_fetch_match_preserves_full_executable_order_books():
+    quote = PolymarketProvider(get_json=_transport_with_depth).fetch_match(
+        "Vitality", "MOUZ", event_id="1",
+        observed_at=datetime(2030, 1, 1, 11, tzinfo=UTC))
+    book = quote["order_books"]["Vitality"]
+    assert book["bids"] == [{"price": .69, "size": 100.0}]
+    assert book["asks"] == [{"price": .71, "size": 80.0}]
+    assert book["book_hash"] == "book-hash"
+    assert book["executable_depth_available"] is True

@@ -171,6 +171,41 @@ class PolymarketProvider:
             raise DataUnavailableError("order book com preços inválidos")
         return (bid + ask) / 2, ask - bid
 
+    @staticmethod
+    def _book_snapshot(book: dict[str, Any], *, token_id: str) -> dict[str, Any]:
+        """Preserve price levels; absent sizes make the snapshot non-executable."""
+        levels: dict[str, list[dict[str, float | None]]] = {"bids": [], "asks": []}
+        for side in levels:
+            rows = book.get(side)
+            if not isinstance(rows, list):
+                raise DataUnavailableError("order book sem níveis")
+            for row in rows:
+                try:
+                    price = float(row["price"])
+                    size = float(row["size"]) if row.get("size") is not None else None
+                except (KeyError, TypeError, ValueError) as exc:
+                    raise DataUnavailableError("nível do order book malformado") from exc
+                if not math.isfinite(price) or not 0 < price < 1:
+                    raise DataUnavailableError("preço inválido no order book")
+                if size is not None and (not math.isfinite(size) or size <= 0):
+                    raise DataUnavailableError("tamanho inválido no order book")
+                levels[side].append({"price": price, "size": size})
+        if not levels["bids"] or not levels["asks"]:
+            raise DataUnavailableError("order book sem ambos os lados")
+        levels["bids"].sort(key=lambda row: float(row["price"]), reverse=True)
+        levels["asks"].sort(key=lambda row: float(row["price"]))
+        return {
+            "token_id": token_id,
+            "published_at": _timestamp(book.get("timestamp")).isoformat(timespec="seconds"),
+            "book_hash": str(book.get("hash") or ""),
+            "tick_size": float(book["tick_size"]) if book.get("tick_size") is not None else None,
+            "min_order_size": (float(book["min_order_size"])
+                               if book.get("min_order_size") is not None else None),
+            "bids": levels["bids"], "asks": levels["asks"],
+            "executable_depth_available": all(
+                row["size"] is not None for side in levels.values() for row in side),
+        }
+
     def fetch_match(self, team_a: str, team_b: str, *,
                     observed_at: datetime | None = None,
                     event_id: str | None = None) -> dict[str, Any]:
@@ -217,6 +252,8 @@ class PolymarketProvider:
         if published > observed:
             raise DataUnavailableError("order book publicado depois da observação")
         values = [self._midpoint(book) for book in books]
+        snapshots = [self._book_snapshot(book, token_id=token)
+                     for token, book in zip(tokens, books, strict=True)]
         total = sum(mid for mid, _spread in values)
         probs = {name: mid / total for name, (mid, _spread) in zip(outcomes, values)}
         name_a = next(name for name in outcomes if identity_key(name) == identity_key(team_a))
@@ -237,5 +274,6 @@ class PolymarketProvider:
             "decimal_a": round(1 / probs[name_a], 6), "decimal_b": round(1 / probs[name_b], 6),
             "max_spread": round(max(spread for _mid, spread in values), 8),
             "liquidity": float(market.get("liquidity") or event.get("liquidity") or 0),
+            "order_books": {name: snapshot for name, snapshot in zip(outcomes, snapshots, strict=True)},
             "read_only": True,
         }

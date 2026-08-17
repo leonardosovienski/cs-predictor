@@ -121,6 +121,8 @@ class MarketQuote:
     closing_definition_version: str
     ingestion_batch_id: str
     provenance_hash: str
+    max_spread: float | None = None
+    liquidity: float | None = None
 
     def validate(self, *, match_start_at: str | datetime | None = None) -> None:
         if not all(isinstance(getattr(self, key), str) and getattr(self, key).strip()
@@ -135,6 +137,10 @@ class MarketQuote:
         normalized = _finite(self.implied_probability_normalized, "implied_probability_normalized")
         if odds <= 1 or not 0 < raw < 1 or not 0 < normalized < 1:
             raise ContractError("odds/probabilidade de mercado inválida")
+        if self.max_spread is not None and not 0 <= _finite(self.max_spread, "max_spread") <= 1:
+            raise ContractError("max_spread inválido")
+        if self.liquidity is not None and _finite(self.liquidity, "liquidity") < 0:
+            raise ContractError("liquidity inválida")
         captured = _utc(self.captured_at, "captured_at")
         if match_start_at is not None and captured >= _utc(match_start_at, "match_start_at"):
             raise ContractError("closing/cotação depois do evento")
@@ -196,6 +202,7 @@ CREATE TABLE IF NOT EXISTS market_quotes (
   implied_probability_raw REAL NOT NULL, implied_probability_normalized REAL NOT NULL,
   is_closing INTEGER NOT NULL, closing_definition_version TEXT NOT NULL,
   ingestion_batch_id TEXT NOT NULL, provenance_hash TEXT NOT NULL,
+  max_spread REAL, liquidity REAL,
   PRIMARY KEY(provider, source_market_id, selection, captured_at)
 );
 CREATE INDEX IF NOT EXISTS idx_market_quotes_event ON market_quotes(canonical_event_id, captured_at);
@@ -229,6 +236,12 @@ class MarketDB:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA busy_timeout=5000")
         conn.executescript(MARKET_SCHEMA)
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(market_quotes)")}
+        if "max_spread" not in columns:
+            conn.execute("ALTER TABLE market_quotes ADD COLUMN max_spread REAL")
+        if "liquidity" not in columns:
+            conn.execute("ALTER TABLE market_quotes ADD COLUMN liquidity REAL")
+        conn.commit()
         return conn
 
     def insert_batch(self, conn: sqlite3.Connection, *, ingestion_batch_id: str, source: str,
@@ -257,12 +270,18 @@ class MarketDB:
                                (canonical_event_id,)).fetchone()
         if not mapping or mapping[0] not in {"EXACT", "RULE_BASED", "MANUAL_CONFIRMED"}:
             raise ContractError("cotação sem mapeamento canônico aceito")
-        conn.execute("INSERT OR IGNORE INTO market_quotes VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        conn.execute("""INSERT OR IGNORE INTO market_quotes
+                     (provider,source_market_id,canonical_event_id,captured_at,bookmaker,
+                      market_type,market_scope,selection,decimal_odds,implied_probability_raw,
+                      implied_probability_normalized,is_closing,closing_definition_version,
+                      ingestion_batch_id,provenance_hash,max_spread,liquidity)
+                     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                      (quote.provider, quote.source_market_id, canonical_event_id, quote.captured_at,
                       quote.bookmaker, quote.market_type, quote.market_scope, quote.selection,
                       quote.decimal_odds, quote.implied_probability_raw,
                       quote.implied_probability_normalized, int(quote.is_closing),
-                      quote.closing_definition_version, quote.ingestion_batch_id, quote.provenance_hash))
+                      quote.closing_definition_version, quote.ingestion_batch_id, quote.provenance_hash,
+                      quote.max_spread, quote.liquidity))
         conn.commit()
 
 

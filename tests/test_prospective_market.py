@@ -1,7 +1,11 @@
 import sqlite3
 from datetime import UTC, datetime
 
+import pytest
+
+from src.market_db import ContractError
 from src.prospective_market import ProspectiveStore, migrate_sports_db
+from src.shadow_economics import StrategySpec, shadow_decision
 
 
 def _quote(**updates):
@@ -96,3 +100,86 @@ def test_status_is_explicit_that_clv_is_not_available(tmp_path):
     status = store.status(conn, now=datetime(2030, 1, 1, tzinfo=UTC))
     assert status["clv_available"] is False
     assert "não é closing line externa" in status["market_reference_definition"]
+
+
+def test_pre_post_veto_contract_requires_real_timestamps_and_external_closing(tmp_path):
+    store = ProspectiveStore(tmp_path / "market.db"); conn = store.connect()
+    order_books = {"A": {"token_id": "token-a", "published_at": "2030-01-01T10:02:00+00:00",
+                           "book_hash": "hash-a", "tick_size": .01, "min_order_size": 5,
+                           "executable_depth_available": True,
+                           "bids": [{"price": .54, "size": 1000}],
+                           "asks": [{"price": .55, "size": 1000}]}}
+    store.import_quotes(conn, [
+        _quote(quote_id="pre", observed_at="2030-01-01T09:00:00+00:00"),
+        _quote(quote_id="post", observed_at="2030-01-01T10:02:00+00:00",
+               order_books=order_books),
+    ], batch_id="b")
+    key = "polymarket-clob:m1"
+    roster_a = store.record_roster_snapshot(
+        conn, event_key=key, team_id="team-a", known_at="2030-01-01T08:00:00+00:00",
+        players=["a1", "a2", "a3", "a4", "a5"], stand_in_player_ids=[],
+        igl_player_id="a1", coach_id="coach-a", source="grid")
+    roster_b = store.record_roster_snapshot(
+        conn, event_key=key, team_id="team-b", known_at="2030-01-01T08:00:00+00:00",
+        players=["b1", "b2", "b3", "b4", "b5"], stand_in_player_ids=["b5"],
+        igl_player_id="b1", coach_id=None, source="grid")
+    store.record_forecast(
+        conn, event_key=key, stage="PRE_VETO", generated_at="2030-01-01T09:00:00+00:00",
+        probability_a=.58, model_name="elo", model_version="1", ratings_sha256="a" * 64,
+        roster_snapshot_a_id=roster_a, roster_snapshot_b_id=roster_b)
+    store.record_veto_action(conn, event_key=key, sequence_no=1, action_type="BAN",
+                             actor_team_id="team-a", map_name="Mirage",
+                             decided_at="2030-01-01T10:00:00+00:00", source="grid")
+    store.record_veto_action(conn, event_key=key, sequence_no=2, action_type="PICK",
+                             actor_team_id="team-b", map_name="Nuke",
+                             decided_at="2030-01-01T10:01:00+00:00", source="grid")
+    store.classify_quote_stage(conn, quote_id="pre", stage="PRE_VETO")
+    store.classify_quote_stage(conn, quote_id="post", stage="POST_VETO", veto_sequence_cutoff=2)
+    post_forecast = store.record_forecast(
+        conn, event_key=key, stage="POST_VETO", generated_at="2030-01-01T10:02:00+00:00",
+        probability_a=.63, model_name="elo-map", model_version="1", ratings_sha256="a" * 64,
+        roster_snapshot_a_id=roster_a, roster_snapshot_b_id=roster_b, veto_sequence_cutoff=2)
+    store.record_external_closing(
+        conn, event_key=key, provider="independent-book", source_market_id="book-1",
+        captured_at="2030-01-02T11:55:00+00:00", definition_version="liquid-close/1",
+        probability_a=.60, decimal_odds_a=1.65, decimal_odds_b=2.35,
+        max_spread=.02, liquidity=5000)
+    assert conn.execute("SELECT count(*) FROM prospective_order_book_levels").fetchone() == (2,)
+    spec = {**StrategySpec(stake=50, min_depth_multiple=1).__dict__, "capital_allowed": False}
+    store.register_strategy(conn, spec)
+    economic = shadow_decision(
+        model_probability=.63, bids=order_books["A"]["bids"], asks=order_books["A"]["asks"],
+        strategy=StrategySpec(stake=50, min_depth_multiple=1))
+    decision_id = store.record_shadow_decision(
+        conn, event_key=key, quote_id="post", forecast_id=post_forecast, selection="A",
+        decision=economic, decided_at="2030-01-01T10:03:00+00:00")
+    assert decision_id.startswith("decision_")
+    assert conn.execute("SELECT decision,capital_allowed FROM prospective_shadow_decisions").fetchone() == ("BET", 0)
+    store.record_result(conn, event_key=key, winner="A", score={"team_a": 2, "team_b": 0},
+                        result_source="official", result_available_at="2030-01-02T13:00:00+00:00")
+    evaluation = store.evaluate_pre_post_veto(
+        conn, strategy_version="VETO-01/1", closing_provider="independent-book",
+        closing_definition_version="liquid-close/1")
+    assert evaluation["post_veto"]["brier"] < evaluation["pre_veto"]["brier"]
+    assert evaluation["economic"]["settled_bets"] == 1
+    assert evaluation["economic"]["mean_log_clv"] > 0
+    assert evaluation["capital_allowed"] is False
+    status = store.status(conn, now=datetime(2030, 1, 2, 11, 56, tzinfo=UTC))
+    assert status["pre_post_veto_hypothesis_ready_matches"] == 1
+
+
+def test_post_veto_rejects_proxy_or_missing_real_sequence(tmp_path):
+    store = ProspectiveStore(tmp_path / "market.db"); conn = store.connect()
+    store.import_quotes(conn, [_quote()], batch_id="b")
+    key = "polymarket-clob:m1"
+    with pytest.raises(ContractError, match="veto real"):
+        store.record_forecast(conn, event_key=key, stage="POST_VETO",
+                              generated_at="2030-01-01T10:00:00+00:00", probability_a=.6,
+                              model_name="HistoricalVetoProxy", model_version="1",
+                              ratings_sha256="a" * 64, veto_sequence_cutoff=1)
+    with pytest.raises(ContractError, match="independente"):
+        store.record_external_closing(
+            conn, event_key=key, provider="polymarket-clob", source_market_id="m1",
+            captured_at="2030-01-02T11:55:00+00:00", definition_version="self/1",
+            probability_a=.55, decimal_odds_a=1.8, decimal_odds_b=2.2,
+            max_spread=.02, liquidity=1000)

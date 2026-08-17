@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
@@ -19,10 +20,13 @@ from .beyond_market_closure import (
     is_shadow_market_db,
 )
 from .market_db import ContractError, canonical_event_id
+from .shadow_economics import probability_metrics
 
 ACCEPTED_MAPPING = {"EXACT", "RULE_BASED", "MANUAL_CONFIRMED"}
 EVENT_STATES = {"PRE_EVENT", "EVENT_TIME_PASSED", "RESULT_PENDING", "RESULT_VALIDATED",
                 "CLOSING_PENDING", "SETTLEMENT_READY", "MATURED", "VOID", "REJECTED"}
+VETO_ACTIONS = {"BAN", "PICK", "DECIDER", "START_SIDE"}
+FORECAST_STAGES = {"PRE_VETO", "POST_VETO"}
 
 
 def _iso(ts: int | None, date: str) -> str | None:
@@ -130,6 +134,58 @@ CREATE TABLE IF NOT EXISTS prospective_settlements (
   market_probability_a REAL NOT NULL, closing_quote_id TEXT NOT NULL, settled_at TEXT NOT NULL,
   provenance_hash TEXT NOT NULL, settlement_status TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS prospective_roster_snapshots (
+  roster_snapshot_id TEXT PRIMARY KEY, event_key TEXT NOT NULL, team_id TEXT NOT NULL,
+  known_at TEXT NOT NULL, players_json TEXT NOT NULL, stand_in_player_ids_json TEXT NOT NULL,
+  igl_player_id TEXT, coach_id TEXT, source TEXT NOT NULL, provenance_hash TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS prospective_veto_actions (
+  event_key TEXT NOT NULL, sequence_no INTEGER NOT NULL, action_type TEXT NOT NULL,
+  actor_team_id TEXT, map_name TEXT NOT NULL, starting_side TEXT, decided_at TEXT NOT NULL,
+  source TEXT NOT NULL, provenance_hash TEXT NOT NULL,
+  PRIMARY KEY(event_key, sequence_no)
+);
+CREATE TABLE IF NOT EXISTS prospective_forecasts (
+  forecast_id TEXT PRIMARY KEY, event_key TEXT NOT NULL, stage TEXT NOT NULL,
+  generated_at TEXT NOT NULL, probability_a REAL NOT NULL, probability_b REAL NOT NULL,
+  model_name TEXT NOT NULL, model_version TEXT NOT NULL, ratings_sha256 TEXT NOT NULL,
+  roster_snapshot_a_id TEXT, roster_snapshot_b_id TEXT, veto_sequence_cutoff INTEGER,
+  provenance_hash TEXT NOT NULL, UNIQUE(event_key, stage)
+);
+CREATE TABLE IF NOT EXISTS prospective_quote_stages (
+  quote_id TEXT PRIMARY KEY, event_key TEXT NOT NULL, stage TEXT NOT NULL,
+  veto_sequence_cutoff INTEGER, classified_at TEXT NOT NULL, provenance_hash TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS prospective_order_books (
+  quote_id TEXT NOT NULL, selection TEXT NOT NULL, token_id TEXT NOT NULL,
+  published_at TEXT NOT NULL, book_hash TEXT NOT NULL, tick_size REAL,
+  min_order_size REAL, executable_depth_available INTEGER NOT NULL,
+  PRIMARY KEY(quote_id, selection)
+);
+CREATE TABLE IF NOT EXISTS prospective_order_book_levels (
+  quote_id TEXT NOT NULL, selection TEXT NOT NULL, side TEXT NOT NULL,
+  level_no INTEGER NOT NULL, price REAL NOT NULL, size REAL,
+  PRIMARY KEY(quote_id, selection, side, level_no)
+);
+CREATE TABLE IF NOT EXISTS prospective_strategy_specs (
+  strategy_version TEXT PRIMARY KEY, registered_at TEXT NOT NULL,
+  spec_json TEXT NOT NULL, provenance_hash TEXT NOT NULL, capital_allowed INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS prospective_shadow_decisions (
+  decision_id TEXT PRIMARY KEY, event_key TEXT NOT NULL, quote_id TEXT NOT NULL,
+  forecast_id TEXT NOT NULL, strategy_version TEXT NOT NULL, selection TEXT NOT NULL,
+  decision TEXT NOT NULL, reason TEXT NOT NULL, requested_stake REAL NOT NULL,
+  filled_stake REAL NOT NULL, average_price REAL, effective_decimal_odds REAL,
+  net_edge REAL, decided_at TEXT NOT NULL, payload_json TEXT NOT NULL,
+  provenance_hash TEXT NOT NULL, capital_allowed INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS prospective_external_closings (
+  event_key TEXT NOT NULL, provider TEXT NOT NULL, source_market_id TEXT NOT NULL,
+  captured_at TEXT NOT NULL, definition_version TEXT NOT NULL, probability_a REAL NOT NULL,
+  decimal_odds_a REAL NOT NULL, decimal_odds_b REAL NOT NULL, max_spread REAL,
+  liquidity REAL, provenance_hash TEXT NOT NULL, status TEXT NOT NULL,
+  PRIMARY KEY(event_key, provider, definition_version)
+);
 """
 
 
@@ -205,9 +261,289 @@ class ProspectiveStore:
                               row.get("decimal_a"), row.get("decimal_b"), row.get("probability_a"), row.get("probability_b"),
                               row.get("max_spread"), row["model_probability_a"], row["model_probability_b"],
                               row["ratings_sha256"], batch_id, _hash(row), quality, row.get("liquidity")))
+                for selection, book in (row.get("order_books") or {}).items():
+                    conn.execute("""INSERT OR IGNORE INTO prospective_order_books
+                                 VALUES(?,?,?,?,?,?,?,?)""",
+                                 (row["quote_id"], selection, book["token_id"],
+                                  book["published_at"], book.get("book_hash", ""),
+                                  book.get("tick_size"), book.get("min_order_size"),
+                                  int(book.get("executable_depth_available", False))))
+                    for side in ("bids", "asks"):
+                        for level_no, level in enumerate(book.get(side) or [], 1):
+                            conn.execute("""INSERT OR IGNORE INTO prospective_order_book_levels
+                                         VALUES(?,?,?,?,?,?)""",
+                                         (row["quote_id"], selection, side.upper(), level_no,
+                                          level["price"], level.get("size")))
                 counts["imported"] += 1
             except (ContractError, ValueError, TypeError): counts["invalid"] += 1
         conn.commit(); return counts
+
+    def record_roster_snapshot(self, conn: sqlite3.Connection, *, event_key: str, team_id: str,
+                               known_at: str, players: list[str], stand_in_player_ids: list[str],
+                               igl_player_id: str | None, coach_id: str | None,
+                               source: str) -> str:
+        """Persist a point-in-time roster without pretending a reserved ID is populated."""
+        self._assert_open()
+        event = conn.execute("SELECT match_start_at FROM prospective_events WHERE event_key=?",
+                             (event_key,)).fetchone()
+        if not event:
+            raise ContractError("evento prospectivo desconhecido")
+        known = datetime.fromisoformat(known_at.replace("Z", "+00:00"))
+        start = datetime.fromisoformat(event[0].replace("Z", "+00:00"))
+        if known >= start or not players or len(players) != len(set(players)):
+            raise ContractError("roster exige jogadores únicos conhecidos antes do evento")
+        if any(player not in players for player in stand_in_player_ids):
+            raise ContractError("stand-in não pertence ao roster")
+        payload = {"event_key": event_key, "team_id": team_id, "known_at": known_at,
+                   "players": players, "stand_ins": stand_in_player_ids, "igl": igl_player_id,
+                   "coach": coach_id, "source": source}
+        roster_id = "roster_" + _hash(payload)[:24]
+        conn.execute("""INSERT OR IGNORE INTO prospective_roster_snapshots
+                     VALUES(?,?,?,?,?,?,?,?,?,?)""",
+                     (roster_id, event_key, team_id, known_at, json.dumps(players, sort_keys=True),
+                      json.dumps(stand_in_player_ids, sort_keys=True), igl_player_id, coach_id,
+                      source, _hash(payload)))
+        conn.commit()
+        return roster_id
+
+    def record_veto_action(self, conn: sqlite3.Connection, *, event_key: str, sequence_no: int,
+                           action_type: str, map_name: str, decided_at: str, source: str,
+                           actor_team_id: str | None = None,
+                           starting_side: str | None = None) -> None:
+        """Record a real, timestamped veto action; historical map frequency is not accepted."""
+        self._assert_open()
+        event = conn.execute("SELECT match_start_at FROM prospective_events WHERE event_key=?",
+                             (event_key,)).fetchone()
+        action = action_type.upper()
+        if not event:
+            raise ContractError("evento prospectivo desconhecido")
+        if sequence_no < 1 or action not in VETO_ACTIONS or not map_name.strip() or not source.strip():
+            raise ContractError("ação de veto inválida")
+        decided = datetime.fromisoformat(decided_at.replace("Z", "+00:00"))
+        start = datetime.fromisoformat(event[0].replace("Z", "+00:00"))
+        if decided >= start:
+            raise ContractError("veto deve ser conhecido antes do evento")
+        previous = conn.execute("SELECT max(sequence_no),max(decided_at) FROM prospective_veto_actions "
+                                "WHERE event_key=?", (event_key,)).fetchone()
+        if previous[0] is not None and (sequence_no != previous[0] + 1 or decided_at < previous[1]):
+            raise ContractError("sequência/timestamp de veto não monotônico")
+        payload = {"event_key": event_key, "sequence": sequence_no, "action": action,
+                   "actor": actor_team_id, "map": map_name, "side": starting_side,
+                   "decided_at": decided_at, "source": source}
+        conn.execute("INSERT INTO prospective_veto_actions VALUES(?,?,?,?,?,?,?,?,?)",
+                     (event_key, sequence_no, action, actor_team_id, map_name, starting_side,
+                      decided_at, source, _hash(payload)))
+        conn.commit()
+
+    def record_forecast(self, conn: sqlite3.Connection, *, event_key: str, stage: str,
+                        generated_at: str, probability_a: float, model_name: str,
+                        model_version: str, ratings_sha256: str,
+                        roster_snapshot_a_id: str | None = None,
+                        roster_snapshot_b_id: str | None = None,
+                        veto_sequence_cutoff: int | None = None) -> str:
+        """Freeze comparable pre/post-veto probabilities with strict temporal semantics."""
+        self._assert_open()
+        normalized_stage = stage.upper()
+        event = conn.execute("SELECT match_start_at FROM prospective_events WHERE event_key=?",
+                             (event_key,)).fetchone()
+        if not event or normalized_stage not in FORECAST_STAGES or not 0 < probability_a < 1:
+            raise ContractError("previsão prospectiva inválida")
+        generated = datetime.fromisoformat(generated_at.replace("Z", "+00:00"))
+        start = datetime.fromisoformat(event[0].replace("Z", "+00:00"))
+        if generated >= start or len(ratings_sha256) != 64:
+            raise ContractError("tempo/rating da previsão inválido")
+        last_veto = conn.execute("SELECT max(sequence_no),max(decided_at) FROM prospective_veto_actions "
+                                 "WHERE event_key=?", (event_key,)).fetchone()
+        if normalized_stage == "PRE_VETO" and last_veto[0] is not None:
+            first_veto = conn.execute("SELECT min(decided_at) FROM prospective_veto_actions "
+                                      "WHERE event_key=?", (event_key,)).fetchone()[0]
+            if generated_at >= first_veto:
+                raise ContractError("previsão PRE_VETO posterior ao início do veto")
+        if normalized_stage == "POST_VETO":
+            if last_veto[0] is None or veto_sequence_cutoff != last_veto[0] or generated_at < last_veto[1]:
+                raise ContractError("previsão POST_VETO exige veto real completo até o cutoff")
+        payload = {"event_key": event_key, "stage": normalized_stage, "generated_at": generated_at,
+                   "probability_a": probability_a, "model": model_name, "version": model_version,
+                   "ratings": ratings_sha256, "rosters": [roster_snapshot_a_id, roster_snapshot_b_id],
+                   "veto_sequence_cutoff": veto_sequence_cutoff}
+        forecast_id = "forecast_" + _hash(payload)[:24]
+        conn.execute("""INSERT INTO prospective_forecasts VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                     (forecast_id, event_key, normalized_stage, generated_at, probability_a,
+                      1 - probability_a, model_name, model_version, ratings_sha256,
+                      roster_snapshot_a_id, roster_snapshot_b_id, veto_sequence_cutoff, _hash(payload)))
+        conn.commit()
+        return forecast_id
+
+    def classify_quote_stage(self, conn: sqlite3.Connection, *, quote_id: str, stage: str,
+                             veto_sequence_cutoff: int | None = None) -> None:
+        """Classify a persisted executable quote against observed veto timestamps."""
+        self._assert_open()
+        normalized_stage = stage.upper()
+        quote = conn.execute("SELECT event_key,captured_at FROM prospective_quotes WHERE quote_id=?",
+                             (quote_id,)).fetchone()
+        if not quote or normalized_stage not in FORECAST_STAGES:
+            raise ContractError("quote/estágio inválido")
+        event_key, captured_at = quote
+        boundary = conn.execute("SELECT min(decided_at),max(decided_at),max(sequence_no) "
+                                "FROM prospective_veto_actions WHERE event_key=?", (event_key,)).fetchone()
+        if boundary[2] is None:
+            raise ContractError("classificação exige veto real timestampado")
+        captured = datetime.fromisoformat(captured_at.replace("Z", "+00:00"))
+        first = datetime.fromisoformat(boundary[0].replace("Z", "+00:00"))
+        last = datetime.fromisoformat(boundary[1].replace("Z", "+00:00"))
+        if normalized_stage == "PRE_VETO" and captured >= first:
+            raise ContractError("quote PRE_VETO não antecede o veto")
+        if normalized_stage == "POST_VETO" and (
+                captured < last or veto_sequence_cutoff != boundary[2]):
+            raise ContractError("quote POST_VETO exige veto completo até o cutoff")
+        payload = {"quote_id": quote_id, "event_key": event_key, "stage": normalized_stage,
+                   "veto_sequence_cutoff": veto_sequence_cutoff}
+        conn.execute("INSERT OR REPLACE INTO prospective_quote_stages VALUES(?,?,?,?,?,?)",
+                     (quote_id, event_key, normalized_stage, veto_sequence_cutoff,
+                      datetime.now(UTC).isoformat(timespec="seconds"), _hash(payload)))
+        conn.commit()
+
+    def register_strategy(self, conn: sqlite3.Connection, spec: dict[str, Any]) -> str:
+        """Freeze a no-capital strategy before any prospective decision."""
+        self._assert_open()
+        version = str(spec.get("version") or "").strip()
+        required = ("stake", "min_edge", "max_spread", "min_depth_multiple", "fee_rate")
+        if not version or any(key not in spec for key in required):
+            raise ContractError("estratégia incompleta")
+        if spec.get("capital_allowed") is not False:
+            raise ContractError("estratégia prospectiva deve ser shadow-only")
+        payload = {key: spec[key] for key in sorted(spec)}
+        conn.execute("INSERT OR IGNORE INTO prospective_strategy_specs VALUES(?,?,?,?,0)",
+                     (version, datetime.now(UTC).isoformat(timespec="seconds"),
+                      json.dumps(payload, sort_keys=True), _hash(payload)))
+        conn.commit()
+        return version
+
+    def record_shadow_decision(self, conn: sqlite3.Connection, *, event_key: str,
+                               quote_id: str, forecast_id: str, selection: str,
+                               decision: dict[str, Any], decided_at: str) -> str:
+        """Append an auditable BET/NO_BET/NO_FILL decision; real capital is impossible."""
+        self._assert_open()
+        allowed = {"BET", "NO_BET", "NO_FILL"}
+        strategy = decision.get("strategy") or {}
+        version = str(strategy.get("version") or "")
+        if decision.get("decision") not in allowed or strategy.get("capital_allowed", False):
+            raise ContractError("decisão shadow inválida")
+        registered = conn.execute("SELECT 1 FROM prospective_strategy_specs WHERE strategy_version=? "
+                                  "AND capital_allowed=0", (version,)).fetchone()
+        quote = conn.execute("""SELECT 1 FROM prospective_quote_stages
+                              WHERE quote_id=? AND event_key=? AND stage='POST_VETO'""",
+                             (quote_id, event_key)).fetchone()
+        forecast = conn.execute("""SELECT 1 FROM prospective_forecasts
+                                 WHERE forecast_id=? AND event_key=? AND stage='POST_VETO'""",
+                                (forecast_id, event_key)).fetchone()
+        if not registered or not quote or not forecast:
+            raise ContractError("decisão exige estratégia, quote e previsão POST_VETO")
+        event = conn.execute("SELECT match_start_at FROM prospective_events WHERE event_key=?",
+                             (event_key,)).fetchone()
+        moment = datetime.fromisoformat(decided_at.replace("Z", "+00:00"))
+        if not event or moment >= datetime.fromisoformat(event[0].replace("Z", "+00:00")):
+            raise ContractError("decisão posterior ao evento")
+        payload = {**decision, "event_key": event_key, "quote_id": quote_id,
+                   "forecast_id": forecast_id, "selection": selection,
+                   "decided_at": decided_at, "capital_allowed": False}
+        decision_id = "decision_" + _hash(payload)[:24]
+        conn.execute("""INSERT OR IGNORE INTO prospective_shadow_decisions
+                     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)""",
+                     (decision_id, event_key, quote_id, forecast_id, version, selection,
+                      decision["decision"], decision["reason"], decision["requested_stake"],
+                      decision.get("filled_stake", 0), decision.get("average_price"),
+                      decision.get("effective_decimal_odds"), decision.get("net_edge"),
+                      decided_at, json.dumps(payload, sort_keys=True), _hash(payload)))
+        conn.commit()
+        return decision_id
+
+    def record_external_closing(self, conn: sqlite3.Connection, *, event_key: str, provider: str,
+                                source_market_id: str, captured_at: str, definition_version: str,
+                                probability_a: float, decimal_odds_a: float, decimal_odds_b: float,
+                                max_spread: float | None, liquidity: float | None) -> None:
+        """Record an independent closing reference; Polymarket self-closing is rejected."""
+        self._assert_open()
+        event = conn.execute("SELECT provider,match_start_at FROM prospective_events WHERE event_key=?",
+                             (event_key,)).fetchone()
+        if not event:
+            raise ContractError("evento prospectivo desconhecido")
+        if provider == event[0] or provider.lower().startswith("polymarket"):
+            raise ContractError("closing externo deve usar fonte independente")
+        captured = datetime.fromisoformat(captured_at.replace("Z", "+00:00"))
+        start = datetime.fromisoformat(event[1].replace("Z", "+00:00"))
+        if captured >= start or not 0 < probability_a < 1 or decimal_odds_a <= 1 or decimal_odds_b <= 1:
+            raise ContractError("closing externo inválido")
+        if max_spread is not None and not 0 <= max_spread <= 1:
+            raise ContractError("spread externo inválido")
+        if liquidity is not None and liquidity < 0:
+            raise ContractError("liquidez externa inválida")
+        payload = {"event_key": event_key, "provider": provider, "market": source_market_id,
+                   "captured_at": captured_at, "definition": definition_version,
+                   "probability_a": probability_a, "odds": [decimal_odds_a, decimal_odds_b],
+                   "max_spread": max_spread, "liquidity": liquidity}
+        conn.execute("INSERT OR REPLACE INTO prospective_external_closings VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                     (event_key, provider, source_market_id, captured_at, definition_version,
+                      probability_a, decimal_odds_a, decimal_odds_b, max_spread, liquidity,
+                      _hash(payload), "VALID"))
+        conn.commit()
+
+    def evaluate_pre_post_veto(self, conn: sqlite3.Connection, *, strategy_version: str,
+                               closing_provider: str,
+                               closing_definition_version: str) -> dict[str, Any]:
+        """Evaluate only matured, prospectively frozen rows against an external close."""
+        self._assert_open()
+        rows = conn.execute("""SELECT e.event_key,e.team_a,r.winner,
+            pre.probability_a,post.probability_a,c.probability_a
+          FROM prospective_events e
+          JOIN prospective_results r ON r.event_key=e.event_key AND r.validation_status='RESULT_VALIDATED'
+          JOIN prospective_forecasts pre ON pre.event_key=e.event_key AND pre.stage='PRE_VETO'
+          JOIN prospective_forecasts post ON post.event_key=e.event_key AND post.stage='POST_VETO'
+          JOIN prospective_external_closings c ON c.event_key=e.event_key
+             AND c.provider=? AND c.definition_version=? AND c.status='VALID'
+          ORDER BY e.event_key""", (closing_provider, closing_definition_version)).fetchall()
+        scored = [{"event_key": key, "outcome": int(winner == team_a),
+                   "pre_probability": pre, "post_probability": post,
+                   "closing_probability": closing}
+                  for key, team_a, winner, pre, post, closing in rows]
+        decisions = conn.execute("""SELECT d.selection,d.filled_stake,d.effective_decimal_odds,
+            d.payload_json,e.team_a,r.winner,c.decimal_odds_a,c.decimal_odds_b
+          FROM prospective_shadow_decisions d
+          JOIN prospective_events e ON e.event_key=d.event_key
+          JOIN prospective_results r ON r.event_key=d.event_key AND r.validation_status='RESULT_VALIDATED'
+          JOIN prospective_external_closings c ON c.event_key=d.event_key
+             AND c.provider=? AND c.definition_version=? AND c.status='VALID'
+          WHERE d.strategy_version=? AND d.decision='BET' AND d.capital_allowed=0
+          ORDER BY d.decision_id""",
+                                 (closing_provider, closing_definition_version,
+                                  strategy_version)).fetchall()
+        total_staked = pnl = clv_sum = 0.0
+        for selection, stake, entry_odds, payload_json, team_a, winner, close_a, close_b in decisions:
+            payload = json.loads(payload_json)
+            fee = float(payload["strategy"]["fee_rate"])
+            won = selection == winner
+            pnl += stake * (entry_odds - 1) * (1 - fee) if won else -stake
+            total_staked += stake
+            closing_odds = close_a if selection == team_a else close_b
+            clv_sum += math.log(entry_odds / closing_odds)
+        pre_metrics = probability_metrics(scored, "pre_probability")
+        post_metrics = probability_metrics(scored, "post_probability")
+        return {
+            "strategy_version": strategy_version,
+            "closing_provider": closing_provider,
+            "closing_definition_version": closing_definition_version,
+            "pre_veto": pre_metrics, "post_veto": post_metrics,
+            "brier_improvement": (None if not scored else
+                                  pre_metrics["brier"] - post_metrics["brier"]),
+            "log_loss_improvement": (None if not scored else
+                                     pre_metrics["log_loss"] - post_metrics["log_loss"]),
+            "economic": {"settled_bets": len(decisions), "total_staked": total_staked,
+                         "pnl": pnl, "roi_on_staked": (pnl / total_staked
+                                                        if total_staked else None),
+                         "mean_log_clv": (clv_sum / len(decisions) if decisions else None),
+                         "clv_available": bool(decisions)},
+            "capital_allowed": False,
+        }
 
     def record_result(self, conn: sqlite3.Connection, *, event_key: str, winner: str, score: dict,
                       result_source: str, result_available_at: str) -> None:
@@ -265,11 +601,20 @@ class ProspectiveStore:
                                 WHERE e.mapping_status IN ('EXACT','RULE_BASED','MANUAL_CONFIRMED')""").fetchone()[0]
         days = 0 if not first else max(0, (now - datetime.fromisoformat(first.replace("Z", "+00:00"))).days)
         ambiguous = conn.execute("SELECT count(*) FROM prospective_events WHERE mapping_status='AMBIGUOUS'").fetchone()[0]
+        hypothesis_ready = conn.execute("""SELECT count(*) FROM prospective_events e
+            WHERE EXISTS (SELECT 1 FROM prospective_forecasts f WHERE f.event_key=e.event_key AND f.stage='PRE_VETO')
+              AND EXISTS (SELECT 1 FROM prospective_forecasts f WHERE f.event_key=e.event_key AND f.stage='POST_VETO'
+                          AND f.roster_snapshot_a_id IS NOT NULL AND f.roster_snapshot_b_id IS NOT NULL)
+              AND EXISTS (SELECT 1 FROM prospective_veto_actions v WHERE v.event_key=e.event_key)
+              AND EXISTS (SELECT 1 FROM prospective_quote_stages q WHERE q.event_key=e.event_key AND q.stage='PRE_VETO')
+              AND EXISTS (SELECT 1 FROM prospective_quote_stages q WHERE q.event_key=e.event_key AND q.stage='POST_VETO')
+              AND EXISTS (SELECT 1 FROM prospective_external_closings c WHERE c.event_key=e.event_key AND c.status='VALID')""").fetchone()[0]
         return {"states": counts, "matured_matches": matured, "required_matured_matches": 50,
                 "calendar_days": days, "required_calendar_days": 30,
                 "accepted_mappings": sum(1 for _state, mapping, _start in rows if mapping in ACCEPTED_MAPPING),
                 "rejected_legacy_mappings": counts["REJECTED"], "ambiguous_mappings": ambiguous,
                 "decision_ready": matured >= 50 and days >= 30 and ambiguous == 0,
+                "pre_post_veto_hypothesis_ready_matches": hypothesis_ready,
                 "verdict": "PENDING_SETTLEMENT" if matured < 50 else "READY_FOR_BLINDED_EVALUATION",
                 # Honestidade metodológica: o settlement usa a última cotação Polymarket
                 # antes do início (`closing_definition_version="last-valid-pre-event/1"`),

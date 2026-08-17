@@ -44,6 +44,8 @@ def test_market_quote_requires_timestamp_bookmaker_and_valid_margin():
         _quote(captured_at="2026-07-20T12:00:00+00:00").validate(match_start_at=START)
     with pytest.raises(ContractError): _quote(bookmaker="").validate(match_start_at=START)
     with pytest.raises(ContractError): _quote(implied_probability_normalized=float("nan")).validate(match_start_at=START)
+    with pytest.raises(ContractError): _quote(max_spread=-.01).validate(match_start_at=START)
+    with pytest.raises(ContractError): _quote(liquidity=-1).validate(match_start_at=START)
 
 
 def test_market_db_rejects_unmapped_and_ambiguous_event(tmp_path):
@@ -54,6 +56,14 @@ def test_market_db_rejects_unmapped_and_ambiguous_event(tmp_path):
     with pytest.raises(ContractError): store.insert_quote(conn, canonical_event_id=event.canonical_event_id, quote=_quote(), match_start_at=START)
     store.map_event(conn, event); store.insert_quote(conn, canonical_event_id=event.canonical_event_id, quote=_quote(), match_start_at=START)
     assert conn.execute("SELECT count(*) FROM market_quotes").fetchone()[0] == 1
+
+
+def test_market_db_persists_spread_and_liquidity(tmp_path):
+    store = MarketDB(tmp_path / "quotes.db"); conn = store.connect(); event = _mapping()
+    store.map_event(conn, event)
+    store.insert_quote(conn, canonical_event_id=event.canonical_event_id,
+                       quote=_quote(max_spread=.03, liquidity=1250), match_start_at=START)
+    assert conn.execute("SELECT max_spread,liquidity FROM market_quotes").fetchone() == (.03, 1250.0)
 
 
 def test_sports_contract_rejects_future_roster_result_and_bad_hash():
